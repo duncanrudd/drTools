@@ -4,12 +4,16 @@ import drTools.systems.systemUtils as systemUtils
 import drTools.systems.twistySegment as drTwistySegment
 import drTools.systems.head as drHead
 import drTools.systems.root as drRoot
+import drTools.systems.arm as drArm
+
 
 reload(systemUtils)
 reload(drSpine)
 reload(drTwistySegment)
 reload(drHead)
 reload(drRoot)
+reload(drArm)
+
 
 class DrBiped(object):
     '''
@@ -40,7 +44,8 @@ class DrBiped(object):
 
         # Head
         self.headSystem = drHead.DrHead(name='head', start=pmc.PyNode('head_GD'))
-        p = systemUtils.plug(self.headSystem.headZero_grp, self.spineSystem.sockets['chest'], plugType='point', name='head')
+        p = systemUtils.plug(self.headSystem.headZero_grp, self.spineSystem.sockets['chest'], plugType='point',
+                             name='head')
         p.setParent(self.headSystem.plugs_grp)
         p = systemUtils.multiPlug(self.headSystem.headZero_grp,
                                   targetList=[self.spineSystem.sockets['body'], self.spineSystem.sockets['chest']],
@@ -50,24 +55,31 @@ class DrBiped(object):
                                   name='head')
         p.setParent(self.headSystem.plugs_grp)
 
-
         # neck
-        self.neckSystem = drTwistySegment.DrTwistySegment(name='neck',
-                                                          start=pmc.PyNode('neck_GD'),
-                                                          end=pmc.PyNode('head_GD'),
-                                                          numSegs=3,
-                                                          axis='y',
-                                                          upAxis='x',
-                                                          worldUpAxis='x')
+        self.neckSystem = drTwistySegment.DrTwistySegmentSimple(name='neck',
+                                                                start=pmc.PyNode('neck_GD'),
+                                                                end=pmc.PyNode('head_GD'),
+                                                                numSegs=3,
+                                                                axis='y',
+                                                                upAxis='x',
+                                                                worldUpAxis='x')
 
         p = systemUtils.plug(self.neckSystem.start_grp, self.spineSystem.sockets['chest'], name='neckStart')
         p.setParent(self.neckSystem.plugs_grp)
-        p = systemUtils.plug(self.neckSystem.end_grp, self.headSystem.sockets['base'], name='neckEnd')
+        p = systemUtils.plug(self.neckSystem.end_grp, self.headSystem.sockets['ctrl'], name='neckEnd')
         p.setParent(self.neckSystem.plugs_grp)
-        self.headSystem.head_ctrl.twist.connect(self.neckSystem.main_grp.twist)
+        self.spineSystem.main_grp.chest_twist.connect(self.neckSystem.twist_pma.input1D[1])
+        self.headSystem.main_grp.twist.connect(self.neckSystem.twist_pma.input1D[0])
 
+        # right arm
+        self.rtArmSystem = drArm.DrArm(name='rt_arm',
+                                       joints=[pmc.PyNode('rt_clavEnd_GD'),
+                                               pmc.PyNode('rt_elbow_GD'),
+                                               pmc.PyNode('rt_wrist_GD'),
+                                               pmc.PyNode('rt_wrist_end_GD')],
+                                       numTwistSegs=5)
 
         # Parent to rig_grp and connect globalscales of all systems
-        for system in [self.spineSystem, self.headSystem, self.neckSystem]:
+        for system in [self.spineSystem, self.headSystem, self.neckSystem, self.rtArmSystem]:
             system.main_grp.setParent(self.rootSystem.rig_grp)
             self.rootSystem.rootSystem.main_grp.globalScale.connect(system.main_grp.globalScale)

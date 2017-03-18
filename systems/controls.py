@@ -13,19 +13,19 @@ def orientCtrl(ctrl=None, axis=None):
     pmc.select( '%s.cv[ * ]' % shape )
     
     if axis=='y':
-        cmds.rotate( 90, rotateX=True )
+        pmc.rotate( 90, rotateX=True )
     elif axis=='x':
-        cmds.rotate( 90, rotateY=True )
+        pmc.rotate( 90, rotateY=True )
     elif axis=='z':
-        cmds.rotate( 90, rotateZ=True )
+        pmc.rotate( 90, rotateZ=True )
     elif axis=='-y':
-        cmds.rotate( -90, rotateX=True )
+        pmc.rotate( -90, rotateX=True )
     elif axis=='-x':
-        cmds.rotate( -90, rotateY=True )
+        pmc.rotate( -90, rotateY=True )
     elif axis=='-z':
-        cmds.rotate( -90, rotateZ=True )
+        pmc.rotate( -90, rotateZ=True )
         
-    cmds.select(clear=1)
+    pmc.select(None)
     
     
 ######################################################################################################################################################
@@ -50,10 +50,13 @@ def circleBumpCtrl(radius=20.0, name='', axis='z'):
     '''
     ctrl = pmc.circle(name=name, r=radius, ch=0, o=1, s=24)[0]
     
-    shape = coreUtils.getShape(ctrl.nodeName())
-    shape = shape.rename(ctrl.nodeName()+'Shape')
+    shape = coreUtils.getShape(ctrl)
+    shape.rename(ctrl.name()+'Shape')
     pmc.select( '%s.cv[ 1 ]' % shape )
     pmc.move(radius*.5, moveY=1, r=1)
+    if '-' in axis:
+        pmc.select( '%s.cv[*]' % shape )
+        pmc.rotate(180, rotateZ=True)
     
     if axis != 'z':
         orientCtrl(ctrl=ctrl, axis=axis)

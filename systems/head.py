@@ -3,6 +3,7 @@ import drTools.core.coreUtils as coreUtils
 import drTools.systems.systemUtils as systemUtils
 import drTools.systems.controls as controls
 
+
 reload(systemUtils)
 reload(coreUtils)
 reload(controls)
@@ -39,20 +40,19 @@ class DrHead(systemUtils.DrSystem):
         self.head_ctrl.rotateOrder.set(4)
 
         # Extract twist
-        twist = coreUtils.extractAxis(self.head_ctrl, axis='y', name='head_twist', exposeNode=self.head_ctrl, exposeAttr='twist')
-        twist.setParent(self.rig_grp)
-        pmc.parentConstraint(self.headZero_grp, twist)
+        twist = coreUtils.extractAxis(self.head_ctrl, axis='y', name='head_twist', exposeNode=self.main_grp, exposeAttr='twist')
+        twist['main_grp'].setParent(self.rig_grp)
+        pmc.parentConstraint(self.headZero_grp, twist['main_grp'])
 
         # colours
         coreUtils.colorize('green', [self.head_ctrl])
 
         # connections
-        self.exposeSockets({'base': self.head_ctrl})
+        self.exposeSockets({'ctrl': self.head_ctrl})
 
         if cleanup:
             self.cleanup()
 
     def cleanup(self):
         coreUtils.attrCtrl(nodeList=[self.head_ctrl], attrList=['sx', 'sy', 'sz', 'visibility'])
-        coreUtils.attrCtrl(nodeList=[self.head_ctrl], attrList=['twist'], lock=0)
         self.rig_grp.visibility.set(0)

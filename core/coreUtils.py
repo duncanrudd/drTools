@@ -265,6 +265,18 @@ def divide(input1, input2, name):
     md = multiply(input1, input2, name, operation=2)
     return md
 
+def safeDivide(input1, input2, name):
+    '''
+    adds a condition node which switches the operation to multiply if the divisor == 0
+    '''
+    md = multiply(input1, input2, name)
+    cond = pmc.createNode('condition', name='safeCond_%s' % name)
+    input2.connect(cond.firstTerm)
+    cond.colorIfTrueR.set(1)
+    cond.colorIfFalseR.set(2)
+    cond.outColorR.connect(md.operation)
+    return md
+
 def pow(input1, input2, name):
     md = multiply(input1, input2, name, operation=3)
     return md
@@ -326,6 +338,14 @@ def convert(input, factor, name):
     input.connect(uc.input)
     uc.conversionFactor.set(factor)
     return uc
+
+def reverse(input, name):
+    '''
+    creates a reverse node with input connected to input
+    '''
+    rev = pmc.createNode('reverse', name=name)
+    input.connect(rev.inputX)
+    return rev
 
 def blend(input1, input2, name, blendAttr=None):
     '''
@@ -443,7 +463,7 @@ def colorize( color=None, nodeList=[] ):
 #
 #
 
-def extractAxis(node, axis, name, exposeNode=None, exposeAttr='twist'):
+def extractAxisOld(node, axis, name, exposeNode=None, exposeAttr='twist'):
     '''
     isolates a single rotational axis as in the twist of a forearm
     Creates a lookat locator which is constrained to 'node' and offset by one unit along 'axis'
@@ -476,7 +496,53 @@ def extractAxis(node, axis, name, exposeNode=None, exposeAttr='twist'):
     pmc.addAttr(exposeNode, longName=exposeAttr, at='double', k=1, h=0)
     pmc.connectAttr('%s.r%s' % (infoLoc, axis), '%s.%s' % (exposeNode.name(), exposeAttr))
 
-    return main_grp
+    return [main_grp, readerLoc]
+
+def extractAxis(node, axis, name, exposeNode=None, exposeAttr='twist'):
+    '''
+    Based on Victor Vinyals' nonroll setup
+    '''
+    if not node and len(pmc.selected()) == 1:
+        node = pmc.selected()[0]
+        
+    axisDict={'x':(1,0,0), 'y':(0,1,0), 'z':(0,0,1), '-x':(-1,0,0), '-y':(0,-1,0), '-z':(0,0,-1)}
+    secondAxis=axis.replace(axis[-1], 'x')
+    if 'x' in axis:
+        secondAxis=axis.replace('x', 'y')
+
+    nonRoll = createAlignedNode(node, 'joint', name='%s_JNT' % name)
+    main_grp = addParent(nonRoll, 'group', '%s_GRP' % name)
+    nonRoll.r.set((0, 0, 0))
+    nonRoll.jointOrient.set((0, 0, 0))
+    nonRollEnd = addChild(nonRoll, 'joint', name='%s_END' % name)
+    nonRollEnd.t.set(axisDict[axis])
+    
+    pmc.pointConstraint(node, nonRoll)
+    
+    # build ikHandle
+    ikHandle = pmc.ikHandle(sj=nonRoll, ee=nonRollEnd, n='%s_ikHandle' % name, sol='ikRPsolver')[0]
+    ikHandle.poleVectorX.set(0)
+    ikHandle.poleVectorY.set(0)
+    ikHandle.poleVectorZ.set(0)
+    ikHandle.setParent(main_grp)
+    pmc.parentConstraint(node, ikHandle, mo=1)
+    
+    # build info locator
+    info = addChild(nonRoll, 'locator', '%s_INFO' % name)
+    info.rotateOrder.set(node.rotateOrder.get())
+    pmc.aimConstraint(nonRollEnd, info, aimVector=axisDict[axis], upVector=axisDict[secondAxis], worldUpVector=axisDict[secondAxis], wut='objectrotation', wuo=node )
+        
+    if not exposeNode:
+        exposeNode = main_grp
+
+    pmc.addAttr(exposeNode, longName=exposeAttr, at='double', k=1, h=0)
+    pmc.connectAttr('%s.r%s' % (info, axis), '%s.%s' % (exposeNode.name(), exposeAttr))
+    
+    returnDict = {'main_grp':main_grp, 'nonRoll':nonRoll, 'info':info, 'ikHandle':ikHandle}
+    return returnDict
+#
+#
+#
 
 def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y'):
     '''
@@ -499,8 +565,9 @@ def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y'):
     else:
         aimVec = endVec - startVec
     aimVec.normalize()
-    normalVec = aimVec.cross(upVec)
-    tangentVec = normalVec.cross(aimVec)
+    normalVec = upVec.cross(aimVec)
+    tangentVec = aimVec.cross(normalVec)
+    print 'normalVec: ' + str(normalVec), 'tangentVec: ' + str(tangentVec)
 
     matrixList = ['', '', '', startPos]
     matrixList[orderDict[axis]] = aimVec
@@ -510,6 +577,38 @@ def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y'):
     outMatrix = pmc.datatypes.Matrix(matrixList)
 
     return outMatrix
+
+#
+#
+#
+
+def createAlignedNode(node=None, nodeType='group', name=''):
+    '''
+    creates a node of the specified type and aligns it to the provided node
+    '''
+    if node==None:
+        if len(pmc.selected())==1:
+            node=pmc.selected()[0]
+        else:
+            return 'Please select or specify a node to align to'
+
+    alignedNode = None
+
+    if nodeType =='group':
+        alignedNode = pmc.group(empty=1)
+    elif nodeType == 'locator':
+        alignedNode = pmc.spaceLocator()
+    elif nodeType == 'joint':
+        alignedNode = pmc.joint()
+        alignedNode.setParent(None)
+
+    if alignedNode:
+        align(alignedNode, node)
+
+    if name:
+        alignedNode.rename(name)
+
+    return alignedNode
 
 
 

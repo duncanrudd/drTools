@@ -5,9 +5,9 @@ import drTools.core.coreUtils as coreUtils
 #
 #
 
-def curveBetweenNodes(start=None, end=None, numCVs=4, name=''):
+def curveBetweenNodes(start=None, end=None, numCVs=4, name='', degree=3):
     '''
-    Makes a degree 3 nurbs curve with 4 cvs between two nodes
+    Makes a  nurbs curve between two nodes
 
     '''
     # Validation of args
@@ -19,15 +19,15 @@ def curveBetweenNodes(start=None, end=None, numCVs=4, name=''):
     points = coreUtils.pointsAlongVector(start=startPos, end=endPos, divisions=(numCVs-1))
 
     # create the curve
-    numKnots = 3 + numCVs - 1
-    knots = [0,0,0]
-    for i in range(numKnots-6):
+    numKnots = degree + numCVs - 1
+    knots = [0 for i in range(degree)]
+    for i in range(numKnots-(degree*2)):
         knots.append(i+1)
     knotsMax = knots[-1]
-    for i in range(3):
+    for i in range(degree):
         knots.append(knotsMax+1)
 
-    crv = pmc.curve(p=points, k=knots, name='%s_CRV' % name)
+    crv = pmc.curve(p=points, k=knots, d=degree, name='%s_CRV' % name)
     return crv
 #
 #
@@ -137,7 +137,7 @@ def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', u
             mp.inverseUp.set(1)
         mp.worldUpVector.set(upDict[upAxis])
         if upNode:
-            mp.worldUpType.set(3)
+            mp.worldUpType.set(2)
             upNode.worldMatrix[0].connect(mp.worldUpMatrix)
         crv.worldSpace[0].connect(mp.geometryPath)
 

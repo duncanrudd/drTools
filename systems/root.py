@@ -31,10 +31,6 @@ class DrRoot(systemUtils.DrSystem):
 
         coreUtils.colorize('green', self.ctrls)
 
-        self.main_grp.globalScale.connect(self.root_01_ctrl.sx)
-        self.main_grp.globalScale.connect(self.root_01_ctrl.sy)
-        self.main_grp.globalScale.connect(self.root_01_ctrl.sz)
-
         # connections
         self.exposeSockets({'03': self.root_03_ctrl})
 

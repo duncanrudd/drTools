@@ -256,6 +256,11 @@ class DrSpine(systemUtils.DrSystem):
         coreUtils.colorize('red', [self.rt_hip_ctrl, self.rt_shldr_ctrl])
         coreUtils.colorize('blue', [self.lf_hip_ctrl, self.lf_shldr_ctrl])
 
+        # Extract twist for chest - for use in neck base twisting if head is not following chest rotations
+        twist = coreUtils.extractAxis(self.chest_ctrl, axis='y', name='chest_twist', exposeNode=self.main_grp, exposeAttr='chest_twist')
+        twist['main_grp'].setParent(self.rig_grp)
+        pmc.parentConstraint(chestZero_grp, twist['main_grp'])
+
         # connections
         self.exposeSockets({'rt_hip':self.rt_hip_ctrl,
                             'lf_hip':self.lf_hip_ctrl,
