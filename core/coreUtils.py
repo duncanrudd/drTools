@@ -463,41 +463,6 @@ def colorize( color=None, nodeList=[] ):
 #
 #
 
-def extractAxisOld(node, axis, name, exposeNode=None, exposeAttr='twist'):
-    '''
-    isolates a single rotational axis as in the twist of a forearm
-    Creates a lookat locator which is constrained to 'node' and offset by one unit along 'axis'
-    A second locator is aim constrained to the first with the upVector set to (0,0,0)
-    the angle between lookat's second axis and the aim locator's second axis gives the extracted value
-    '''
-    axisDict={'x':(1,0,0), 'y':(0,1,0), 'z':(0,0,1), '-x':(-1,0,0), '-y':(0,-1,0), '-z':(0,0,-1)}
-    secondAxis='x'
-    if 'x' in axis:
-        secondAxis='y'
-
-    main_grp = pmc.group(empty=1, name='%s_GRP' % name)
-    align(main_grp, node)
-    targetLoc = addChild(main_grp, 'locator', '%s_TARG' % name)
-    targetLoc.t.set(axisDict[axis])
-    pmc.parentConstraint(node, targetLoc, mo=1)
-    readerLoc = addChild(main_grp, 'locator', '%s_READ' % name)
-    pmc.aimConstraint(targetLoc, readerLoc, aimVector=axisDict[axis], upVector=(0,0,0))
-    infoLoc = addChild(readerLoc, 'locator', '%s_INFO' % name)
-    pmc.parentConstraint(targetLoc, infoLoc, mo=0)
-
-    rotateOrderDict = {'x': 0, 'y': 1, 'z': 2}
-
-    for node in [targetLoc, readerLoc, infoLoc]:
-        node.rotateOrder.set(rotateOrderDict[axis[-1]])
-
-    if not exposeNode:
-        exposeNode = main_grp
-
-    pmc.addAttr(exposeNode, longName=exposeAttr, at='double', k=1, h=0)
-    pmc.connectAttr('%s.r%s' % (infoLoc, axis), '%s.%s' % (exposeNode.name(), exposeAttr))
-
-    return [main_grp, readerLoc]
-
 def extractAxis(node, axis, name, exposeNode=None, exposeAttr='twist'):
     '''
     Based on Victor Vinyals' nonroll setup
@@ -567,7 +532,6 @@ def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y'):
     aimVec.normalize()
     normalVec = upVec.cross(aimVec)
     tangentVec = aimVec.cross(normalVec)
-    print 'normalVec: ' + str(normalVec), 'tangentVec: ' + str(tangentVec)
 
     matrixList = ['', '', '', startPos]
     matrixList[orderDict[axis]] = aimVec

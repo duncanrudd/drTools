@@ -18,7 +18,8 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
     WISHLIST: Ability to twist chain with falloff at each control
     '''
 
-    def __init__(self, name, start=None, end=None, numSegs=8, numCtrls=2, axis='x', upAxis='y', worldUpAxis='y', colour='yellow', cleanup=1):
+    def __init__(self, name, start=None, end=None, numSegs=8, numCtrls=2, axis='x', upAxis='y', worldUpAxis='y',
+                 colour='yellow', flipTwist=0, cleanup=1):
         startPos, endPos = coreUtils.getStartAndEnd(start, end)
         if not startPos or not endPos:
             return 'DrTwistySegmentCurve: Unable to determine start and end positions'
@@ -27,9 +28,10 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
         self.upAxis = upAxis
         self.worldUpAxis = worldUpAxis
         self.ctrls = []
-        self.buildTwistySegmentCurve(numSegs, numCtrls, startPos, endPos, colour, cleanup)
+        self.joints = []
+        self.buildTwistySegmentCurve(numSegs, numCtrls, startPos, endPos, colour, flipTwist, cleanup)
 
-    def buildTwistySegmentCurve(self, numSegs, numCtrls, startPos, endPos, colour, cleanup):
+    def buildTwistySegmentCurve(self, numSegs, numCtrls, startPos, endPos, colour, flipTwist, cleanup):
 
         self.noXform_grp = coreUtils.addChild(self.rig_grp, 'group', name='%s_noXform_GRP' % self.name)
         self.noXform_grp.inheritsTransform.set(0)
@@ -82,13 +84,18 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
                                          upAxis=self.upAxis, upVec=self.upAxis, upNode=self.start_grp)
         pmc.addAttr(self.main_grp, longName='twist', at='double', k=1, h=0)
         self.twist_pma = pmc.createNode('plusMinusAverage', name='pma_%s_twistTotal_UTL' % self.name)
-        self.twist_pma.output1D.connect(self.main_grp.twist)
+        if not flipTwist:
+            self.twist_pma.output1D.connect(self.main_grp.twist)
+        else:
+            flipTwist_uc = coreUtils.convert(self.twist_pma.output1D, -1, 'uc_%s_twistInv_UTL')
+            flipTwist_uc.output.connect(self.main_grp.twist)
         self.twist_pma.operation.set(2)
 
         for i in range(numSegs):
             grp = mps['grps'][i]
             grp.setParent(self.noXform_grp)
             j = coreUtils.addChild(grp, 'joint', name='%s_%s_JNT' % (self.name, str(i + 1).zfill(2)))
+            self.joints.append(j)
             self.main_grp.globalScale.connect(j.sx)
             self.main_grp.globalScale.connect(j.sy)
             self.main_grp.globalScale.connect(j.sz)

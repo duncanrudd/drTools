@@ -158,7 +158,6 @@ class DrSpine(systemUtils.DrSystem):
 
         # rotate order
         for node in self.ctrls:
-            print node
             node.rotateOrder.set(4)
 
         for node in mps['grps']:
