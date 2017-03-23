@@ -39,6 +39,10 @@ class DrHead(systemUtils.DrSystem):
 
         self.head_ctrl.rotateOrder.set(4)
 
+        j = coreUtils.addChild(self.rig_grp, 'joint', 'head_JNT')
+        self.joints.append(j)
+        pmc.parentConstraint(self.head_ctrl, j, mo=0)
+
         # Extract twist
         twist = coreUtils.extractAxis(self.head_ctrl, axis='y', name='head_twist', exposeNode=self.main_grp, exposeAttr='twist')
         twist['main_grp'].setParent(self.rig_grp)

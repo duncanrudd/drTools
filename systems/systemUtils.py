@@ -18,6 +18,7 @@ class DrSystem(object):
         # super(DrSystem, self).__init__()
         self.name = name
         self.sockets = {}
+        self.joints=[]
         self.build()
 
     def build(self):
@@ -41,8 +42,6 @@ class DrSystem(object):
             coreUtils.align(s, socketDict[socket], orient=0)
             pmc.parentConstraint(socketDict[socket], s, mo=1)
             self.sockets[socket] = s
-
-
 #
 #
 #

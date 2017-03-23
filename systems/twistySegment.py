@@ -28,7 +28,6 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
         self.upAxis = upAxis
         self.worldUpAxis = worldUpAxis
         self.ctrls = []
-        self.joints = []
         self.buildTwistySegmentCurve(numSegs, numCtrls, startPos, endPos, colour, flipTwist, cleanup)
 
     def buildTwistySegmentCurve(self, numSegs, numCtrls, startPos, endPos, colour, flipTwist, cleanup):
@@ -172,6 +171,7 @@ class DrTwistySegmentSimple(systemUtils.DrSystem):
             mp = mps['mpNodes'][i]
             grp.setParent(self.noXform_grp)
             j = coreUtils.addChild(grp, 'joint', name='%s_%s_JNT' % (self.name, str(i + 1).zfill(2)))
+            self.joints.append(j)
             self.main_grp.globalScale.connect(j.sx)
             self.main_grp.globalScale.connect(j.sy)
             self.main_grp.globalScale.connect(j.sz)

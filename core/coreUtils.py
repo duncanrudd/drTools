@@ -167,7 +167,7 @@ def getDistance( start, end ):
     startPos, endPos = getStartAndEnd(start, end)
 
     if not startPos or not endPos:
-        return 'pointsAlongVector: Cannot determine start and end points'
+        return 'getDistance: Cannot determine start and end points'
 
     calc = []
     calc.append(startPos[0] - endPos[0])
@@ -512,6 +512,7 @@ def extractAxis(node, axis, name, exposeNode=None, exposeAttr='twist'):
 def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y'):
     '''
     Given two nodes or two points, returns a matrix positioned at start, aiming at end along axis
+    Similar to oorient joint.
     '''
     startPos, endPos = getStartAndEnd(start, end)
     if not startPos or not endPos:

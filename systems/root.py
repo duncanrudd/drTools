@@ -51,6 +51,7 @@ class DrRig():
         self.main_grp = pmc.group(empty=1, name='world_GRP')
         self.rig_grp = coreUtils.addChild(self.main_grp, 'group', name='rig_GRP')
         self.geo_grp = coreUtils.addChild(self.main_grp, 'group', name='geo_GRP')
+        self.bind_grp = coreUtils.addChild(self.rig_grp, 'group', name='bind_GRP')
 
         self.rootSystem = DrRoot(name='root', ctrlSize=ctrlSize, cleanup=cleanup)
         self.rootSystem.main_grp.setParent(self.rig_grp)

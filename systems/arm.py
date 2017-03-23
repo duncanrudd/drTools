@@ -74,12 +74,27 @@ class DrArm(drLimb.DrLimb):
         self.elbowCtrl.rx.connect(self.lowerTwist.twist_pma.input1D[1])
         self.main_grp.globalScale.connect(self.lowerTwist.main_grp.globalScale)
 
-        # Average joint
-        elbowAvgJnt = coreUtils.addChild(self.rig_grp, 'joint', '%s_elbowAvg_JNT' % self.name)
+        # Average joints
+        startAvgJnt = coreUtils.addChild(self.rig_grp, 'joint', '%s_startAvg_JNT' % self.name)
+        coreUtils.align(startAvgJnt, self.upperTwist.joints[0], orient=0)
+        pmc.parentConstraint(self.const_grp, self.topTwist['nonRoll'], startAvgJnt, mo=0).interpType.set(2)
+
+        elbowAvgJnt = coreUtils.addChild(self.rig_grp, 'joint', '%s_midAvg_JNT' % self.name)
+        coreUtils.align(elbowAvgJnt, self.upperTwist.joints[-1], orient=0)
         pmc.parentConstraint(self.upperTwist.joints[-1], self.lowerTwist.joints[0], elbowAvgJnt, mo=1).interpType.set(2)
 
-        wristAvgJnt = coreUtils.addChild(self.rig_grp, 'joint', '%s_wristAvg_JNT' % self.name)
+        wristAvgJnt = coreUtils.addChild(self.rig_grp, 'joint', '%s_endAvg_JNT' % self.name)
+        coreUtils.align(wristAvgJnt, self.lowerTwist.joints[-1], orient=0)
         pmc.parentConstraint(self.lowerTwist.joints[-1], self.tripleChain['resultChain'][2], wristAvgJnt, mo=1).interpType.set(2)
+
+        # add joints for publishing
+        self.joints.append(startAvgJnt)
+        for joint in self.upperTwist.joints:
+            self.joints.append(joint)
+        self.joints.append(elbowAvgJnt)
+        for joint in self.lowerTwist.joints:
+            self.joints.append(joint)
+        self.joints.append(wristAvgJnt)
 
         coreUtils.colorize(colour, self.ctrls)
 

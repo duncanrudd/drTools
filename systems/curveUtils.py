@@ -18,8 +18,22 @@ def curveBetweenNodes(start=None, end=None, numCVs=4, name='', degree=3):
 
     points = coreUtils.pointsAlongVector(start=startPos, end=endPos, divisions=(numCVs-1))
 
+    crv = curveThroughPoints(positions=points, name=name, degree=degree)
+
+    return crv
+#
+#
+#
+
+def curveThroughPoints(positions=None, name='', degree=3, bezier=0):
+    if not positions:
+        positions = [pmc.xform(p, q=1, ws=1, t=1) for p in pmc.selected()]
+
+    if len(positions) < (degree+1):
+        return 'Please supply at least 4 points'
+
     # create the curve
-    numKnots = degree + numCVs - 1
+    numKnots = degree + len(positions) - 1
     knots = [0 for i in range(degree)]
     for i in range(numKnots-(degree*2)):
         knots.append(i+1)
@@ -27,7 +41,7 @@ def curveBetweenNodes(start=None, end=None, numCVs=4, name='', degree=3):
     for i in range(degree):
         knots.append(knotsMax+1)
 
-    crv = pmc.curve(p=points, k=knots, d=degree, name='%s_CRV' % name)
+    crv = pmc.curve(p=positions, k=knots, d=degree, name='%s_CRV' % name)
     return crv
 #
 #
@@ -83,7 +97,7 @@ def connectCurve(crv=None):
     crvShape = pmc.listRelatives(crv, c=1, s=1)[0]
 
     for cv in range(len(cvs)):
-        l = pmc.spaceLocator(name='%s_%s_LOC' %(crv, cv+1))
+        l = pmc.spaceLocator(name='%s_%s_LOC' %(crv.name(), cv+1))
         l.t.set(cvs[cv])
         locShape = pmc.listRelatives(l, c=1, s=1)[0]
         locShape.worldPosition[0].connect(crvShape.controlPoints[cv])
@@ -95,7 +109,7 @@ def connectCurve(crv=None):
 #
 #
 
-def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', upNode=None, upVec=None):
+def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', upNode=None, upVec=None, follow=1):
     '''
     creates a motionPath node for each in numNodes and connects its parameter to the supplied curve
     attaches an empty group to each motionpath node
@@ -128,7 +142,7 @@ def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', u
 
         mp = pmc.createNode('motionPath', name='%s_%s_MP' % (name, num))
         mp.fractionMode.set(1)
-        mp.follow.set(1)
+        mp.follow.set(follow)
         mp.frontAxis.set(axisDict[followAxis])
         if invertFront:
             mp.inverseFront.set(1)
@@ -143,7 +157,8 @@ def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', u
 
         # Manually connect up the position
         mp.allCoordinates.connect(n.t)
-        mp.rotate.connect(n.r)
+        if follow:
+            mp.rotate.connect(n.r)
 
         if numNodes != 1:
             mp.uValue.set((1.0 / (numNodes-1))*i)
@@ -154,3 +169,66 @@ def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', u
         returnDict['grps'].append(n)
 
     return returnDict
+#
+#
+#
+
+def sampleCurve(crv=None, numSamples=6, name=''):
+    '''
+    creates a pointOnCurveInfo node for each in numSamples and connects its parameter to the supplied curve
+    returns a list of the created nodes
+    '''
+    nodes=[]
+    for i in range(numSamples):
+        num = str(i+1).zfill(2)
+
+        inf = pmc.createNode('pointOnCurveInfo', name='crvInfo_%s_%s_UTL' % (name, num))
+        inf.turnOnPercentage.set(1)
+        crv.worldSpace[0].connect(inf.inputCurve)
+
+        if numSamples != 1:
+            inf.parameter.set((1.0 / (numSamples-1))*i)
+        else:
+            inf.parameter.set(0.5)
+        nodes.append(inf)
+
+    return nodes
+#
+#
+#
+
+def curveTangentMatrix(crvInfoNode, up_vp, name):
+    '''
+    constructs a matrix based on the tangent of a curve - for use in mouth rigs
+    '''
+    z_vp = pmc.createNode('vectorProduct', name='vecProd_%s_z_UTL' % name)
+    z_vp.operation.set(2)
+    crvInfoNode.result.normalizedTangent.connect(z_vp.input1)
+    up_vp.output.connect(z_vp.input2)
+
+    x_vp = pmc.createNode('vectorProduct', name='vecProd_%s_x_UTL' % name)
+    x_vp.operation.set(2)
+    up_vp.output.connect(x_vp.input1)
+    z_vp.output.connect(x_vp.input2)
+
+    m = pmc.createNode('fourByFourMatrix', name='mat44_%s_UTL' % name)
+    x_vp.outputX.connect(m.in00)
+    x_vp.outputY.connect(m.in01)
+    x_vp.outputZ.connect(m.in02)
+
+    up_vp.outputX.connect(m.in10)
+    up_vp.outputY.connect(m.in11)
+    up_vp.outputZ.connect(m.in12)
+
+    z_vp.outputX.connect(m.in20)
+    z_vp.outputY.connect(m.in21)
+    z_vp.outputZ.connect(m.in22)
+
+    crvInfoNode.result.position.positionX.connect(m.in30)
+    crvInfoNode.result.position.positionY.connect(m.in31)
+    crvInfoNode.result.position.positionZ.connect(m.in32)
+
+    d = pmc.createNode('decomposeMatrix', name='decompMat_%s_UTL' % name)
+    m.output.connect(d.inputMatrix)
+
+    return d

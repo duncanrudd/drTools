@@ -10,14 +10,13 @@ reload(controls)
 
 class DrSpine(systemUtils.DrSystem):
 
-    def __init__(self, name, start=None, end=None, rtHip=None, lfHip=None, rtShldr=None, rtClav=None, lfShldr=None, lfClav=None, numJoints=8, cleanup=1):
+    def __init__(self, name, start=None, end=None, rtHip=None, lfHip=None, rtShldr=None, rtClav=None, lfShldr=None, lfClav=None, numJoints=6, cleanup=1):
         startPos, endPos = coreUtils.getStartAndEnd(start, end)
         if not startPos or not endPos:
             return 'DrSpine: Unable to determine start and end positions'
 
         super(DrSpine, self).__init__(name)
         self.ctrls = []
-        self.jnts = []
         self.buildSpine(startPos, endPos, rtHip, lfHip, rtShldr, rtClav, lfShldr, lfClav, numJoints, cleanup)
 
     def buildSpine(self, startPos, endPos, rtHip, lfHip, rtShldr, rtClav, lfShldr, lfClav, numJoints, cleanup):
@@ -30,7 +29,7 @@ class DrSpine(systemUtils.DrSystem):
         self.crvLocs = curveUtils.connectCurve(self.crv)
 
         # controls
-        ctrlSize = coreUtils.getDistance(startPos, endPos) * .33
+        ctrlSize = coreUtils.getDistance(startPos, endPos) * .5
 
         #Body
         self.body_ctrl = controls.circleBumpCtrl(name='%s_body_CTRL' % self.name, axis='y', radius=ctrlSize)
@@ -45,19 +44,19 @@ class DrSpine(systemUtils.DrSystem):
         self.ctrls.append(self.bodySub_ctrl)
 
         #FK
-        self.fk1_ctrl = controls.circleBumpCtrl(name='%s_fk01_CTRL' % self.name, axis='y', radius=ctrlSize*.5)
+        self.fk1_ctrl = controls.circleBumpCtrl(name='%s_fk01_CTRL' % self.name, axis='y', radius=ctrlSize*.67)
         self.fk1_ctrl.setParent(self.bodySub_ctrl)
         coreUtils.align(self.fk1_ctrl, self.crvLocs[1])
         fk1Zero_grp = coreUtils.addParent(self.fk1_ctrl, 'group', name='%s_fk01_ZERO' % self.name)
         self.ctrls.append(self.fk1_ctrl)
 
-        self.fk2_ctrl = controls.circleBumpCtrl(name='%s_fk02_CTRL' % self.name, axis='y', radius=ctrlSize*.5)
+        self.fk2_ctrl = controls.circleBumpCtrl(name='%s_fk02_CTRL' % self.name, axis='y', radius=ctrlSize*.67)
         self.fk2_ctrl.setParent(self.fk1_ctrl)
         coreUtils.align(self.fk2_ctrl, self.crvLocs[2])
         fk2Zero_grp = coreUtils.addParent(self.fk2_ctrl, 'group', name='%s_fk02_ZERO' % self.name)
         self.ctrls.append(self.fk2_ctrl)
 
-        self.fk3_ctrl = controls.circleBumpCtrl(name='%s_fk03_CTRL' % self.name, axis='y', radius=ctrlSize*.5)
+        self.fk3_ctrl = controls.circleBumpCtrl(name='%s_fk03_CTRL' % self.name, axis='y', radius=ctrlSize*.67)
         self.fk3_ctrl.setParent(self.fk2_ctrl)
         coreUtils.align(self.fk3_ctrl, self.crvLocs[3])
         fk3Zero_grp = coreUtils.addParent(self.fk3_ctrl, 'group', name='%s_fk03_ZERO' % self.name)
@@ -134,7 +133,7 @@ class DrSpine(systemUtils.DrSystem):
             self.hips_ctrl.worldMatrix[0].connect(mp.worldUpMatrix)
             j = coreUtils.addChild(grp, 'joint', grp.name().replace('GRP', 'JNT'))
             self.main_grp.s.connect(j.s)
-            self.jnts.append(j)
+            self.joints.append(j)
             uc = coreUtils.convert(self.twistReader.ry, (1.0 / (numJoints-1))*i, name=j.name().replace('JNT', 'twist_UC'))
             uc.output.connect(j.ry)
         for i in range(numJoints - (numJoints / 2)):
@@ -145,7 +144,7 @@ class DrSpine(systemUtils.DrSystem):
             self.chest_ctrl.worldMatrix[0].connect(mp.worldUpMatrix)
             j = coreUtils.addChild(grp, 'joint', grp.name().replace('GRP', 'JNT'))
             self.main_grp.s.connect(j.s)
-            self.jnts.append(j)
+            self.joints.append(j)
             uc = coreUtils.convert(self.twistReader.ry, (-1.0 / (numJoints-1))*((numJoints - (numJoints / 2)-i)-1), name=j.name().replace('JNT', 'twist_UC'))
             uc.output.connect(j.ry)
 
@@ -213,6 +212,7 @@ class DrSpine(systemUtils.DrSystem):
             rtShldrConst = coreUtils.addChild(self.rig_grp, 'group', name='rt_shldr_CONST')
             pmc.parentConstraint(self.rt_shldr_ctrl, rtShldrConst, mo=0)
             j = coreUtils.addChild(rtShldrConst, 'joint', name='rt_shldr_JNT')
+            self.joints.append(j)
 
             # left
             clavNegScale = pmc.group(empty=1, name='lf_clav_NEG')
@@ -247,6 +247,7 @@ class DrSpine(systemUtils.DrSystem):
             lfShldrConst = coreUtils.addChild(self.rig_grp, 'group', name='lf_shldr_CONST')
             pmc.parentConstraint(self.lf_shldr_ctrl, lfShldrConst, mo=0)
             j = coreUtils.addChild(lfShldrConst, 'joint', name='lf_shldr_JNT')
+            self.joints.append(j)
 
 
         # colours

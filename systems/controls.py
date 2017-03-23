@@ -35,7 +35,7 @@ def circleCtrl(radius=20.0, name='', axis='z'):
     creates a circular nurbs curve
     
     '''
-    ctrl = pmc.circle(name=name, r=radius, ch=0, o=1)
+    ctrl = pmc.circle(name=name, r=radius, ch=0, o=1)[0]
     
     if axis != 'z':
         orientCtrl(ctrl=ctrl, axis=axis)

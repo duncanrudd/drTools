@@ -35,7 +35,7 @@ class DrLimb(systemUtils.DrSystem):
 
         # CONTROLS
         # settings ctrl
-        self.settingsCtrl = controls.crossCtrl(name='%s_settingsCtrl' % self.name, size=ctrlSize)
+        self.settingsCtrl = controls.crossCtrl(name='%s_settings_CTRL' % self.name, size=ctrlSize)
         self.settingsCtrl.setParent(self.tripleChain['resultChain'][2])
         settingsOffset = ctrlSize * 1.5
         if self.tripleChain['resultChain'][2].tx.get() < 0.0:
@@ -56,6 +56,7 @@ class DrLimb(systemUtils.DrSystem):
         coreUtils.align(self.fkTopCtrl, self.tripleChain['fkChain'][0])
         self.fkTopCtrl.setParent(self.ctrls_grp)
         self.fkCtrls_grp = coreUtils.addParent(self.fkTopCtrl, 'group', '%s_fkCtrls_grp' % self.name)
+        self.fkCtrlsConst_grp = coreUtils.addParent(self.fkTopCtrl, 'group', '%s_fkConst_grp' % self.name)
         pmc.parentConstraint(self.fkCtrls_grp, self.const_grp)
         self.ctrls.append(self.fkTopCtrl)
 
@@ -253,6 +254,8 @@ class DrLimb(systemUtils.DrSystem):
         self.exposeSockets({'poleVectorAim': pvAimGrp})
         if leg:
             self.exposeSockets({'ikFoot': self.ikCtrl, 'fkFoot': self.fkBtmCtrl})
+        else:
+            self.exposeSockets({'wrist': self.tripleChain['resultChain'][2]})
 
         if cleanup:
             self.cleanup()

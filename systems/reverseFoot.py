@@ -33,16 +33,22 @@ class DrReverseFoot(systemUtils.DrSystem):
         ikConst_grp = coreUtils.addParent(self.tripleChain['ikChain'][0], 'group', '%s_ikConst_GRP' % self.name)
         fkConst_grp = coreUtils.addParent(self.tripleChain['fkChain'][0], 'group', '%s_fkConst_GRP' % self.name)
         resultConst_grp = coreUtils.addParent(self.tripleChain['resultChain'][0], 'group', '%s_resultConst_GRP' % self.name)
-        bcT = coreUtils.blend(fkConst_grp.t, ikConst_grp.t, name='bc_%s_constGrp_translate_UTL' % self.name)
-        bcT.output.connect(resultConst_grp.t)
-        bcR = coreUtils.blend(fkConst_grp.r, ikConst_grp.r, name='bc_%s_constGrp_rotate_UTL' % self.name)
-        bcR.output.connect(resultConst_grp.r)
+        #bcT = coreUtils.blend(fkConst_grp.t, ikConst_grp.t, name='bc_%s_constGrp_translate_UTL' % self.name)
+        #bcT.output.connect(resultConst_grp.t)
+        #bcR = coreUtils.blend(fkConst_grp.r, ikConst_grp.r, name='bc_%s_constGrp_rotate_UTL' % self.name)
+        #bcR.output.connect(resultConst_grp.r)
 
         self.tripleChain['main_grp'].setParent(self.rig_grp)
 
         if blendAttr:
-            blendAttr.connect(bcT.blender)
-            blendAttr.connect(bcR.blender)
+            par = pmc.parentConstraint(ikConst_grp, fkConst_grp, resultConst_grp, mo=0)
+            attr = pmc.Attribute('%s.%sW1' % (par.name(), fkConst_grp.name()))
+            blendAttr.connect(attr)
+            attr = pmc.Attribute('%s.%sW0' % (par.name(), ikConst_grp.name()))
+            blend_rev = coreUtils.reverse(blendAttr, -1.0, 'reverse_%s_blend, UTL' % self.name)
+            blend_rev.output.connect(attr)
+            #blendAttr.connect(bcT.blender)
+            #blendAttr.connect(bcR.blender)
             for bc in self.tripleChain['blendColors']:
                 blendAttr.connect(bc.blender)
 
@@ -59,6 +65,7 @@ class DrReverseFoot(systemUtils.DrSystem):
                                     endEffector=self.tripleChain['ikChain'][1],
                                     setupForRPsolver=1)[0]
         footIkHandle.setParent(self.rig_grp)
+        footIkHandleConst = coreUtils.addParent(footIkHandle, 'group', '%s_footIkHandle_CONST')
 
         ballIkHandle = pmc.ikHandle(solver='ikRPsolver',
                                     name='%s_ball_ikHandle' % self.name,
@@ -66,6 +73,7 @@ class DrReverseFoot(systemUtils.DrSystem):
                                     endEffector=self.tripleChain['ikChain'][2],
                                     setupForRPsolver=1)[0]
         ballIkHandle.setParent(self.rig_grp)
+        ballIkHandleConst = coreUtils.addParent(ballIkHandle, 'group', '%s_ballIkHandle_CONST')
 
         toeIkHandle = pmc.ikHandle(solver='ikRPsolver',
                                    name='%s_toe_ikHandle' % self.name,
@@ -73,6 +81,7 @@ class DrReverseFoot(systemUtils.DrSystem):
                                    endEffector=self.tripleChain['ikChain'][3],
                                    setupForRPsolver=1)[0]
         toeIkHandle.setParent(self.rig_grp)
+        toeIkHandleConst = coreUtils.addParent(toeIkHandle, 'group', '%s_toeIkHandle_CONST')
 
         # ikCtrls
         self.heelIkCtrl = controls.squareCtrl(name='%s_heel_ik_CTRL' % self.name, axis=axis, size=ctrlSize)
@@ -104,7 +113,7 @@ class DrReverseFoot(systemUtils.DrSystem):
         inv_uc = coreUtils.convert(self.ballPivotIkCtrl.rx, -1.0, name='uc_%s_ballPivotIkCtrlRotX_UTL')
         inv_uc.output.connect(inv_grp.rx)
 
-        pmc.parentConstraint(self.ballPivotIkCtrl, toeIkHandle, mo=1)
+        pmc.parentConstraint(self.ballPivotIkCtrl, toeIkHandleConst, mo=1)
         self.ctrls.append(self.ballPivotIkCtrl)
 
         self.ballPivotIkCtrl.rx.connect(self.outerLoc.rx)
@@ -117,14 +126,14 @@ class DrReverseFoot(systemUtils.DrSystem):
         coreUtils.align(self.ballIkCtrl, self.tripleChain['ikChain'][2])
         self.ballIkCtrl.setParent(self.ballPivotIkCtrl)
         coreUtils.addParent(self.ballIkCtrl, 'group', '%s_ballIkCtrl_ZERO' % self.name)
-        pmc.parentConstraint(self.ballIkCtrl, ballIkHandle, mo=1)
+        pmc.parentConstraint(self.ballIkCtrl, ballIkHandleConst, mo=1)
         self.ctrls.append(self.ballIkCtrl)
 
         self.footIkCtrl = controls.squareCtrl(name='%s_foot_ik_CTRL' % self.name, axis=axis, size=ctrlSize)
         coreUtils.align(self.footIkCtrl, self.tripleChain['ikChain'][1])
         self.footIkCtrl.setParent(self.ballIkCtrl)
         coreUtils.addParent(self.footIkCtrl, 'group', '%s_footIkCtrl_ZERO' % self.name)
-        pmc.parentConstraint(self.footIkCtrl, footIkHandle, mo=1)
+        pmc.parentConstraint(self.footIkCtrl, footIkHandleConst, mo=1)
         pmc.parentConstraint(self.footIkCtrl, ikConst_grp, mo=1)
         self.ctrls.append(self.footIkCtrl)
         
@@ -155,6 +164,9 @@ class DrReverseFoot(systemUtils.DrSystem):
 
         pmc.parentConstraint(self.fkCtrls_grp, fkConst_grp, mo=1)
 
+        for joint in self.tripleChain['resultChain']:
+            self.joints.append(joint)
+
         # connections
         self.exposeSockets({'ikFoot': self.tripleChain['ikChain'][0]})
 
@@ -162,6 +174,6 @@ class DrReverseFoot(systemUtils.DrSystem):
             self.cleanup()
 
     def cleanup(self):
-        coreUtils.attrCtrl(nodeList=self.ctrls, attrList=['ty', 'tz','sx', 'sy', 'sz', 'visibility'])
-        coreUtils.attrCtrl(nodeList=self.ballPivotIkCtrl, attrList=['ry'])
+        coreUtils.attrCtrl(nodeList=self.ctrls, attrList=['tx', 'ty', 'tz', 'sx', 'sy', 'sz', 'visibility'])
+        coreUtils.attrCtrl(nodeList=[self.ballPivotIkCtrl], attrList=['ry'])
         self.rig_grp.visibility.set(0)
