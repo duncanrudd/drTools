@@ -23,7 +23,6 @@ def addChild(parent, childType, name, zero=1):
         node = pmc.joint(name=name)
         if not node.getParent() == parent:
             node.setParent(parent)
-
     if node:
         if zero:
             align(node, parent)
@@ -33,6 +32,7 @@ def addChild(parent, childType, name, zero=1):
 #
 #
 #
+
 
 def addParent(child, parentType, name, zero=1):
     '''
@@ -63,9 +63,10 @@ def addParent(child, parentType, name, zero=1):
 #
 #
 
-def align( node=None, target=None, translate=True, orient=True, scale=False ):
+def align( node=None, target=None, translate=True, orient=True, scale=False, parent=0 ):
     '''
     sets the translation and / or orientation of node to match target
+    If optional parent flag is set to true. Will also parent to the target node
     '''
 
     # Validate that the correct arguments have been supplied
@@ -95,6 +96,10 @@ def align( node=None, target=None, translate=True, orient=True, scale=False ):
 
     if not scale:
         node.s.set(nodeScale)
+
+    if parent:
+        if not node.parent == target:
+            node.setParent(target)
 
 #
 #

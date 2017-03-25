@@ -197,13 +197,18 @@ def sampleCurve(crv=None, numSamples=6, name=''):
 #
 #
 
-def curveTangentMatrix(crvInfoNode, up_vp, name):
+def curveTangentMatrix(mp, up_vp, name):
     '''
     constructs a matrix based on the tangent of a curve - for use in mouth rigs
     '''
+    tangent_vp = pmc.createNode('vectorProduct', name='vecProd_%s_tangent_UTL' % name)
+    tangent_vp.operation.set(3)
+    mp.worldMatrix[0].connect(tangent_vp.matrix)
+    tangent_vp.input1.set((1, 0, 0))
+
     z_vp = pmc.createNode('vectorProduct', name='vecProd_%s_z_UTL' % name)
     z_vp.operation.set(2)
-    crvInfoNode.result.normalizedTangent.connect(z_vp.input1)
+    tangent_vp.output.connect(z_vp.input1)
     up_vp.output.connect(z_vp.input2)
 
     x_vp = pmc.createNode('vectorProduct', name='vecProd_%s_x_UTL' % name)
@@ -224,9 +229,9 @@ def curveTangentMatrix(crvInfoNode, up_vp, name):
     z_vp.outputY.connect(m.in21)
     z_vp.outputZ.connect(m.in22)
 
-    crvInfoNode.result.position.positionX.connect(m.in30)
-    crvInfoNode.result.position.positionY.connect(m.in31)
-    crvInfoNode.result.position.positionZ.connect(m.in32)
+    mp.tx.connect(m.in30)
+    mp.ty.connect(m.in31)
+    mp.tz.connect(m.in32)
 
     d = pmc.createNode('decomposeMatrix', name='decompMat_%s_UTL' % name)
     m.output.connect(d.inputMatrix)
