@@ -190,9 +190,10 @@ def getStartAndEnd(start=None, end=None):
     Takes either two pynodes, two vectors or two selected nodes and returns their positions
     '''
     startPos, endPos = None, None
-    if not start or not end and len(pmc.selected()) == 2:
-        startPos = pmc.xform(pmc.selected()[0], translation=True, query=True, ws=True)
-        endPos = pmc.xform(pmc.selected()[1], translation=True, query=True, ws=True)
+    if not start or not end:
+        if len(pmc.selected()) == 2:
+            startPos = pmc.xform(pmc.selected()[0], translation=True, query=True, ws=True)
+            endPos = pmc.xform(pmc.selected()[1], translation=True, query=True, ws=True)
     else:
         if pmc.nodetypes.Transform in type(start).__mro__:
             startPos = pmc.xform(start, translation=True, query=True, ws=True)

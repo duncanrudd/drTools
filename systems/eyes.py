@@ -54,6 +54,8 @@ class DrEyes(systemUtils.DrSystem):
         # Set up aims
         rtGrp = coreUtils.addChild(self.rig_grp, 'group', 'rt_eye_GRP')
         rtGrp.t.set(rtPos)
+        pmc.parentConstraint(self.ctrls_grp, rtGrp, mo=1)
+        pmc.scaleConstraint(self.ctrls_grp, rtGrp, mo=1)
 
         rtAimGrp = coreUtils.addChild(rtGrp, 'group', 'rt_eyeAim_GRP')
         pmc.aimConstraint(self.rtCtrl, rtAimGrp, aim=(0, 0, 1), wut='objectrotation', wuo=rtGrp)
@@ -62,6 +64,8 @@ class DrEyes(systemUtils.DrSystem):
 
         lfGrp = coreUtils.addChild(self.rig_grp, 'group', 'lf_eye_GRP')
         lfGrp.t.set(lfPos)
+        pmc.parentConstraint(self.ctrls_grp, lfGrp, mo=1)
+        pmc.scaleConstraint(self.ctrls_grp, lfGrp, mo=1)
 
         lfAimGrp = coreUtils.addChild(lfGrp, 'group', 'lf_eyeAim_GRP')
         pmc.aimConstraint(self.lfCtrl, lfAimGrp, aim=(0, 0, 1), wut='objectrotation', wuo=lfGrp)
@@ -102,6 +106,7 @@ class DrEyes(systemUtils.DrSystem):
         self.main_grp.lids_auto.set(1.0)
 
         rtLidGrp = coreUtils.addChild(self.rig_grp, 'group', 'rt_lids_GRP')
+        coreUtils.align(rtLidGrp, rtGrp)
 
         # rt_top
         rtTopLidZero = coreUtils.addChild(rtLidGrp, 'group', 'rt_topLid_ZERO')
@@ -116,6 +121,7 @@ class DrEyes(systemUtils.DrSystem):
 
         # lf_top
         lfLidGrp = coreUtils.addChild(self.rig_grp, 'group', 'lf_lids_GRP')
+        coreUtils.align(lfLidGrp, lfGrp)
 
         lfTopLidZero = coreUtils.addChild(lfLidGrp, 'group', 'lf_topLid_ZERO')
         lfTopLidAutoGrp = coreUtils.addChild(lfTopLidZero, 'group', 'lf_topLidAuto_GRP')
@@ -174,7 +180,7 @@ class DrEyes(systemUtils.DrSystem):
         c, g = _makeCtrl('rt_btmLid', 'red', (rtPos[0], rtPos[1]+(ctrlSize * -.33), rtPos[2] + ctrlSize), rtBtmLidAutoGrp)
         _makeSubCtrls(c, 'rt_btmLid', 'red', g)
 
-        subs = {0: ['in', .33], 1: ['mid', 0], 2: ['out', -.33]}
+        subs = {0: ['in', -.33], 1: ['mid', 0], 2: ['out', .33]}
 
         # lf top lid
         c, g = _makeCtrl('lf_topLid', 'blue', (lfPos[0], lfPos[1]+(ctrlSize * .33), lfPos[2] + ctrlSize), lfTopLidAutoGrp)

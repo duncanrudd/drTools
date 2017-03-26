@@ -162,6 +162,9 @@ class DrSpine(systemUtils.DrSystem):
         for node in mps['grps']:
             node.rotateOrder.set(4)
 
+        for node in mps['mpNodes']:
+            node.rotateOrder.set(4)
+
         for node in [hipsPar, chestPar, midPar, twistPar, hipsConst, chestConst, midConst, self.twistReader]:
             node.rotateOrder.set(4)
 
