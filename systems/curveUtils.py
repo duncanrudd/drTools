@@ -118,7 +118,7 @@ def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', u
     '''
     # Validation of args
     if not crv:
-        if len(cmds.ls(sl=1)) == 1:
+        if len(pmc.selected()) == 1:
             crv = pmc.selected()[0]
         else:
             return 'nodesAlongCurve: Please supply or select a nurbs curve'
@@ -169,6 +169,76 @@ def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', u
         returnDict['grps'].append(n)
 
     return returnDict
+#
+#
+#
+
+def nodesAtCurvePoints(crv=None, name='', followAxis='x', upAxis='y', upNode=None, upVec=None, follow=1):
+    if not crv and len(pmc.selected()) == 1:
+        crv = pmc.selected()[0]
+        cvs = crv.getCVs()
+    else:
+        return 'nodesAtCurvePoints: please provide a curve'
+    
+    invertFront, invertUp = 0, 0
+    if '-' in followAxis:
+        invertFront = 1
+        followAxis = followAxis[-1]
+    if '-' in upAxis:
+        invertUp = 1
+        upAxis = upAxis[-1]
+
+    axisDict = {'x': 0, 'y': 1, 'z': 2}
+    upDict = {'x': (1.0, 0.0, 0.0), 'y': (0.0, 1.0, 0.0), 'z': (0.0, 0.0, 1.0)}
+
+    returnDict={'mpNodes':[], 'grps':[]}
+    for i in range(len(cvs)):
+        cv = cvs[i]
+        num = str(i+1).zfill(2)
+        uParam = getClosestPointOnCurve(crv, point=cv)
+        mp = pmc.createNode('motionPath', name='mp_%s_%s_UTL' % (name, num))
+        mp.uValue.set(uParam)
+        mp.follow.set(follow)
+        mp.frontAxis.set(axisDict[followAxis])
+        if invertFront:
+            mp.inverseFront.set(1)
+        mp.upAxis.set(axisDict[upAxis])
+        if invertFront:
+            mp.inverseUp.set(1)
+        mp.worldUpVector.set(upDict[upAxis])
+        if upNode:
+            mp.worldUpType.set(2)
+            upNode.worldMatrix[0].connect(mp.worldUpMatrix)
+        crv.worldSpace[0].connect(mp.geometryPath)
+
+        n = pmc.group(empty=1, name='%s_%s_GRP' % (name, num))
+        # Manually connect up the position
+        mp.allCoordinates.connect(n.t)
+        if follow:
+            mp.rotate.connect(n.r)
+
+#
+#
+#
+
+def getClosestPointOnCurve(crv, point=None, obj=None):
+    '''
+    returns the uParam of the curve at the closest point to point or obj
+    '''
+    if point:
+        pass
+    elif obj:
+        point = pmc.xform(obj, q=1, ws=1, t=1)
+    else:
+        return 'Incorrect paramters passed in'
+
+    npoc = pmc.createNode('nearestPointOnCurve')
+    crv.worldSpace[0].connect(npoc.inputCurve)
+    npoc.inPosition.set(point)
+    result = npoc.parameter.get()
+    pmc.delete(npoc)
+    return result
+
 #
 #
 #

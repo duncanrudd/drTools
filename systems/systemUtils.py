@@ -135,7 +135,7 @@ def multiPlug(node=None, targetList=[], targetNames=[], settingsNode=None, plugT
 #
 #
 
-def tripleChain(name='', joints=None):
+def tripleChain(name='', joints=None, flip=0):
     '''
     :param joints: List of hierarchical joints to create a blended chain for
     :param name: base name for the new joint chains
@@ -166,22 +166,36 @@ def tripleChain(name='', joints=None):
     resultChain = _duplicateChain('result_JNT')
     fkChain = _duplicateChain('fk_JNT')
     ikChain = _duplicateChain('ik_JNT')
+    flipChain = []
+    if flip:
+        flipChain = _duplicateChain('ikFlip_JNT')
     blendColors = []
+    flipBlendColors = []
 
     # Set up ik / fk blending
     for i in range(len(joints)):
         bc = coreUtils.blend(fkChain[i].t, ikChain[i].t, name='bc_%s_%s_translate_UTL' % (name, str(i + 1).zfill(2)))
         bc.output.connect(resultChain[i].t)
         blendColors.append(bc)
-
-        bc = coreUtils.blend(fkChain[i].r, ikChain[i].r, name='bc_%s_%s_rotate_UTL' % (name, str(i + 1).zfill(2)))
-        bc.output.connect(resultChain[i].r)
-        blendColors.append(bc)
+        
+        if not flip:
+            bc = coreUtils.blend(fkChain[i].r, ikChain[i].r, name='bc_%s_%s_rotate_UTL' % (name, str(i + 1).zfill(2)))
+            bc.output.connect(resultChain[i].r)
+            blendColors.append(bc)
+        else:
+            
+            bc1 = coreUtils.blend(flipChain[i].r, ikChain[i].r, name='bc_%s_%s_ikFlip_UTL' % (name, str(i + 1).zfill(2)))
+            bc = coreUtils.blend(fkChain[i].r, bc1.output, name='bc_%s_%s_rotate_UTL' % (name, str(i + 1).zfill(2)))
+            bc.output.connect(resultChain[i].r)
+            blendColors.append(bc)
+            flipBlendColors.append(bc1)
 
     return {'fkChain': fkChain,
             'ikChain': ikChain,
+            'flipChain': flipChain,
             'resultChain': resultChain,
             'blendColors': blendColors,
+            'flipBlendColors': flipBlendColors,
             'main_grp': main_grp}
 
 

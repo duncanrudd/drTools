@@ -104,18 +104,18 @@ class DrSpine(systemUtils.DrSystem):
         hipsConst.setParent(self.rig_grp)
         hipsPar = pmc.parentConstraint(self.hips_ctrl, hipsConst, mo=0)
         self.crvLocs[1].setParent(hipsConst)
-        hipDist = coreUtils.distanceBetweenNodes(self.hips_ctrl, self.mid_ctrl, name='dist_%s_hipTangent_UTL')
-        hipDistMD = coreUtils.divide(hipDist.distance, self.main_grp.globalScale, name='md_%s_hipTangent_UTL')
-        hipDistUC = coreUtils.convert(hipDistMD.outputX, 0.5, name='uc_%s_hipTangent_UTL')
+        hipDist = coreUtils.distanceBetweenNodes(self.hips_ctrl, self.mid_ctrl, name='dist_%s_hipTangent_UTL' % self.name)
+        hipDistMD = coreUtils.divide(hipDist.distance, self.main_grp.globalScale, name='md_%s_hipTangent_UTL' % self.name)
+        hipDistUC = coreUtils.convert(hipDistMD.outputX, 0.5, name='uc_%s_hipTangent_UTL' % self.name)
         hipDistUC.output.connect(self.crvLocs[1].ty)
 
         chestConst = coreUtils.addParent(self.crvLocs[-1], 'group', name='%s_chest_CONST' % self.name)
         chestConst.setParent(self.rig_grp)
         chestPar = pmc.parentConstraint(self.chest_ctrl, chestConst, mo=0)
         self.crvLocs[-2].setParent(chestConst)
-        chestDist = coreUtils.distanceBetweenNodes(self.chest_ctrl, self.mid_ctrl, name='dist_%s_chestTangent_UTL')
-        chestDistMD = coreUtils.divide(chestDist.distance, self.main_grp.globalScale, name='md_%s_chestTangent_UTL')
-        chestDistUC = coreUtils.convert(chestDistMD.outputX, -0.5, name='uc_%s_chestTangent_UTL')
+        chestDist = coreUtils.distanceBetweenNodes(self.chest_ctrl, self.mid_ctrl, name='dist_%s_chestTangent_UTL' % self.name)
+        chestDistMD = coreUtils.divide(chestDist.distance, self.main_grp.globalScale, name='md_%s_chestTangent_UTL' % self.name)
+        chestDistUC = coreUtils.convert(chestDistMD.outputX, -0.5, name='uc_%s_chestTangent_UTL' % self.name)
         chestDistUC.output.connect(self.crvLocs[-2].ty)
 
         midConst = coreUtils.addParent(self.crvLocs[2], 'group', name='%s_mid_CONST' % self.name)
@@ -156,14 +156,17 @@ class DrSpine(systemUtils.DrSystem):
             blend.outputR.connect(mps['grps'][i].sz)
 
         # rotate order
+        pmc.addAttr(self.body_ctrl, ln='solver_rotate_order', at='enum', enumName='xyz:yzx:zxy:xzy:yxz:zyx', keyable=1, h=0)
         for node in self.ctrls:
             node.rotateOrder.set(4)
 
         for node in mps['grps']:
-            node.rotateOrder.set(4)
+            self.body_ctrl.solver_rotate_order.connect(node.rotateOrder)
 
         for node in mps['mpNodes']:
-            node.rotateOrder.set(4)
+            self.body_ctrl.solver_rotate_order.connect(node.rotateOrder)
+
+        self.body_ctrl.solver_rotate_order.set(4)
 
         for node in [hipsPar, chestPar, midPar, twistPar, hipsConst, chestConst, midConst, self.twistReader]:
             node.rotateOrder.set(4)
@@ -187,30 +190,33 @@ class DrSpine(systemUtils.DrSystem):
             lfHipZero.tx.set(lfHipZero.tx.get()*-1)
 
         # shoulders - must be passed as PyNodes
-        if rtShldr and lfShldr and rtClav and lfClav:
+        if rtShldr and lfShldr:
             # right
             self.rt_shldr_ctrl = controls.boxCtrl(size=ctrlSize*.5, name='rt_shldr_CTRL')
             self.rt_shldr_ctrl.setParent(self.chest_ctrl)
             coreUtils.align(self.rt_shldr_ctrl, rtShldr, orient=0)
-            rtShldrRotInv_grp = coreUtils.addParent(self.rt_shldr_ctrl, 'group', 'rt_shldrRot_INV')
-            rtShldrPosInv_grp = coreUtils.addParent(self.rt_shldr_ctrl, 'group', 'rt_shldrPos_INV')
-            rtShldrZero_grp = coreUtils.addParent(rtShldrRotInv_grp, 'group', 'rt_shldr_ZERO')
-            rtClavDriven_grp = pmc.group(empty=1, name='rt_clav_DRV')
-            coreUtils.align(rtClavDriven_grp, rtClav, orient=0)
-            rtClavZero_grp = coreUtils.addParent(rtClavDriven_grp, 'group', 'rt_clav_ZERO')
-            rtShldrZero_grp.setParent(rtClavDriven_grp)
-            rtClavZero_grp.setParent(self.chest_ctrl)
+            if rtClav:
+                rtShldrRotInv_grp = coreUtils.addParent(self.rt_shldr_ctrl, 'group', 'rt_shldrRot_INV')
+                rtShldrPosInv_grp = coreUtils.addParent(self.rt_shldr_ctrl, 'group', 'rt_shldrPos_INV')
+                rtShldrZero_grp = coreUtils.addParent(rtShldrRotInv_grp, 'group', 'rt_shldr_ZERO')
+                rtClavDriven_grp = pmc.group(empty=1, name='rt_clav_DRV')
+                coreUtils.align(rtClavDriven_grp, rtClav, orient=0)
+                rtClavZero_grp = coreUtils.addParent(rtClavDriven_grp, 'group', 'rt_clav_ZERO')
+                rtShldrZero_grp.setParent(rtClavDriven_grp)
+                rtClavZero_grp.setParent(self.chest_ctrl)
 
-            self.rt_shldr_ctrl.r.connect(rtClavDriven_grp.r)
-            self.rt_shldr_ctrl.t.connect(rtClavDriven_grp.t)
+                self.rt_shldr_ctrl.r.connect(rtClavDriven_grp.r)
+                self.rt_shldr_ctrl.t.connect(rtClavDriven_grp.t)
 
-            rtShldrRotInv_uc = coreUtils.convert(self.rt_shldr_ctrl.r, -1, name='uc_rt_shldrRotInv_UTL')
-            rtShldrPosInv_uc = coreUtils.convert(self.rt_shldr_ctrl.t, -1, name='uc_rt_shldrPosInv_UTL')
+                rtShldrRotInv_uc = coreUtils.convert(self.rt_shldr_ctrl.r, -1, name='uc_rt_shldrRotInv_UTL')
+                rtShldrPosInv_uc = coreUtils.convert(self.rt_shldr_ctrl.t, -1, name='uc_rt_shldrPosInv_UTL')
 
-            rtShldrRotInv_uc.output.connect(rtShldrRotInv_grp.r)
-            rtShldrPosInv_uc.output.connect(rtShldrPosInv_grp.t)
-
-            rtShldrRotInv_grp.rotateOrder.set(5)
+                rtShldrRotInv_uc.output.connect(rtShldrRotInv_grp.r)
+                rtShldrPosInv_uc.output.connect(rtShldrPosInv_grp.t)
+                
+                rtShldrRotInv_grp.rotateOrder.set(5)
+            else:
+                rtShldrZero_grp = coreUtils.addParent(self.rt_shldr_ctrl, 'group', 'rt_shldr_ZERO')
 
             rtShldrConst = coreUtils.addChild(self.rig_grp, 'group', name='rt_shldr_CONST')
             pmc.parentConstraint(self.rt_shldr_ctrl, rtShldrConst, mo=0)
@@ -220,30 +226,33 @@ class DrSpine(systemUtils.DrSystem):
             # left
             clavNegScale = pmc.group(empty=1, name='lf_clav_NEG')
             clavNegScale.setParent(self.chest_ctrl)
-
             self.lf_shldr_ctrl = controls.boxCtrl(size=ctrlSize*.5, name='lf_shldr_CTRL')
             self.lf_shldr_ctrl.setParent(self.chest_ctrl)
             coreUtils.align(self.lf_shldr_ctrl, lfShldr, orient=0)
-            lfShldrRotInv_grp = coreUtils.addParent(self.lf_shldr_ctrl, 'group', 'lf_shldrRot_INV')
-            lfShldrPosInv_grp = coreUtils.addParent(self.lf_shldr_ctrl, 'group', 'lf_shldrPos_INV')
-            lfShldrZero_grp = coreUtils.addParent(lfShldrRotInv_grp, 'group', 'lf_shldr_ZERO')
-            lfClavDriven_grp = pmc.group(empty=1, name='lf_clav_DRV')
-            coreUtils.align(lfClavDriven_grp, lfClav, orient=0)
-            lfClavZero_grp = coreUtils.addParent(lfClavDriven_grp, 'group', 'lf_clav_ZERO')
-            lfShldrZero_grp.setParent(lfClavDriven_grp)
-            lfClavZero_grp.setParent(clavNegScale)
+            if lfClav:
+                lfShldrRotInv_grp = coreUtils.addParent(self.lf_shldr_ctrl, 'group', 'lf_shldrRot_INV')
+                lfShldrPosInv_grp = coreUtils.addParent(self.lf_shldr_ctrl, 'group', 'lf_shldrPos_INV')
+                lfShldrZero_grp = coreUtils.addParent(lfShldrRotInv_grp, 'group', 'lf_shldr_ZERO')
+                lfClavDriven_grp = pmc.group(empty=1, name='lf_clav_DRV')
+                coreUtils.align(lfClavDriven_grp, lfClav, orient=0)
+                lfClavZero_grp = coreUtils.addParent(lfClavDriven_grp, 'group', 'lf_clav_ZERO')
+                lfShldrZero_grp.setParent(lfClavDriven_grp)
+                lfClavZero_grp.setParent(clavNegScale)
 
-            self.lf_shldr_ctrl.r.connect(lfClavDriven_grp.r)
-            self.lf_shldr_ctrl.t.connect(lfClavDriven_grp.t)
+                self.lf_shldr_ctrl.r.connect(lfClavDriven_grp.r)
+                self.lf_shldr_ctrl.t.connect(lfClavDriven_grp.t)
 
-            lfShldrRotInv_uc = coreUtils.convert(self.lf_shldr_ctrl.r, -1, name='uc_lf_shldrRotInv_UTL')
-            lfShldrPosInv_uc = coreUtils.convert(self.lf_shldr_ctrl.t, -1, name='uc_lf_shldrPosInv_UTL')
+                lfShldrRotInv_uc = coreUtils.convert(self.lf_shldr_ctrl.r, -1, name='uc_lf_shldrRotInv_UTL')
+                lfShldrPosInv_uc = coreUtils.convert(self.lf_shldr_ctrl.t, -1, name='uc_lf_shldrPosInv_UTL')
 
-            lfShldrRotInv_uc.output.connect(lfShldrRotInv_grp.r)
-            lfShldrPosInv_uc.output.connect(lfShldrPosInv_grp.t)
+                lfShldrRotInv_uc.output.connect(lfShldrRotInv_grp.r)
+                lfShldrPosInv_uc.output.connect(lfShldrPosInv_grp.t)
 
-            lfShldrRotInv_grp.rotateOrder.set(5)
-
+                lfShldrRotInv_grp.rotateOrder.set(5)
+            else:
+                lfShldrZero_grp = coreUtils.addParent(self.lf_shldr_ctrl, 'group', 'lf_shldr_ZERO')
+                lfShldrZero_grp.setParent(clavNegScale)
+                
             clavNegScale.sx.set(-1)
             lfShldrZero_grp.tx.set(lfShldrZero_grp.tx.get()*-1)
 
@@ -256,8 +265,12 @@ class DrSpine(systemUtils.DrSystem):
         # colours
         coreUtils.colorize('green', [self.body_ctrl, self.bodySub_ctrl, self.fk1_ctrl, self.fk2_ctrl, self.fk3_ctrl])
         coreUtils.colorize('yellow', [self.hips_ctrl, self.chest_ctrl, self.mid_ctrl])
-        coreUtils.colorize('red', [self.rt_hip_ctrl, self.rt_shldr_ctrl])
-        coreUtils.colorize('blue', [self.lf_hip_ctrl, self.lf_shldr_ctrl])
+        if lfHip and rtHip:
+            coreUtils.colorize('red', [self.rt_hip_ctrl])
+            coreUtils.colorize('blue', [self.lf_hip_ctrl])
+        if lfShldr and rtShldr:
+            coreUtils.colorize('red', [self.rt_shldr_ctrl])
+            coreUtils.colorize('blue', [self.lf_shldr_ctrl])
 
         # Extract twist for chest - for use in neck base twisting if head is not following chest rotations
         twist = coreUtils.extractAxis(self.chest_ctrl, axis='y', name='chest_twist', exposeNode=self.main_grp, exposeAttr='chest_twist')
@@ -265,29 +278,37 @@ class DrSpine(systemUtils.DrSystem):
         pmc.parentConstraint(chestZero_grp, twist['main_grp'])
 
         # connections
-        self.exposeSockets({'rt_hip':self.rt_hip_ctrl,
-                            'lf_hip':self.lf_hip_ctrl,
-                            'rt_shldr':self.rt_shldr_ctrl,
-                            'lf_shldr':self.lf_shldr_ctrl,
-                            'chest':self.chest_ctrl,
-                            'body':self.bodySub_ctrl})
+        if lfHip and rtHip:
+            self.exposeSockets({'rt_hip':self.rt_hip_ctrl,
+                                'lf_hip':self.lf_hip_ctrl})
+        if lfShldr and rtShldr:
+            self.exposeSockets({'rt_shldr':self.rt_shldr_ctrl,
+                                'lf_shldr':self.lf_shldr_ctrl})
+        
+        self.exposeSockets({'chest':self.chest_ctrl,
+                            'body':self.bodySub_ctrl,
+                            'hips':self.hips_ctrl})
 
         if cleanup:
-            self.cleanup()
+            self.cleanup(lfHip, rtHip, lfShldr, rtShldr)
 
-    def cleanup(self):
+    def cleanup(self, lfHip, rtHip, lfShldr, rtShldr):
         coreUtils.attrCtrl(nodeList=[self.body_ctrl,
                                      self.bodySub_ctrl,
                                      self.hips_ctrl,
                                      self.chest_ctrl,
                                      self.fk1_ctrl,
                                      self.fk2_ctrl,
-                                     self.fk3_ctrl,
-                                     self.rt_hip_ctrl,
-                                     self.rt_shldr_ctrl,
-                                     self.lf_hip_ctrl,
-                                     self.lf_shldr_ctrl],
+                                     self.fk3_ctrl],
                            attrList=['sx', 'sy', 'sz', 'visibility'])
+        if lfHip and rtHip:
+            coreUtils.attrCtrl(nodeList=[self.rt_hip_ctrl,
+                                         self.lf_hip_ctrl],
+                               attrList=['sx', 'sy', 'sz', 'visibility'])
+        if lfHip and rtHip:
+            coreUtils.attrCtrl(nodeList=[self.rt_shldr_ctrl,
+                                         self.lf_shldr_ctrl],
+                               attrList=['sx', 'sy', 'sz', 'visibility'])
 
         coreUtils.attrCtrl(nodeList=[self.mid_ctrl], attrList=['rx', 'ry', 'rz', 'sx', 'sy', 'sz', 'visibility'])
         self.rig_grp.visibility.set(0)

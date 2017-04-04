@@ -45,16 +45,20 @@ def addParent(child, parentType, name, zero=1):
         child = pmc.selected()[0]
 
     parent = pmc.listRelatives(child, p=1, fullPath=1)
+    if type(parent) == type([]):
+        if len(parent) > 0:
+            parent = parent[0]
 
     if parentType == 'group':
         node = pmc.group(empty=1, name=name)
     elif parentType == 'locator':
         node = pmc.spaceLocator(name=name)
-
+	
     if node:
         if zero:
             align(node, child)
-        node.setParent(parent)
+        if parent:
+            node.setParent(parent)
         child.setParent(node)
         return node
     else:
@@ -371,7 +375,7 @@ def blend(input1, input2, name, blendAttr=None):
         val = input1
         connect=False
 
-    if type(val) == pmc.datatypes.Vector:
+    if type(val) == pmc.datatypes.Vector or type(val) == type((0, 0, 0)):
         if connect:
             input1.connect(blend.color1)
         else:
@@ -389,7 +393,7 @@ def blend(input1, input2, name, blendAttr=None):
         val = input2
         connect=False
 
-    if type(val) == pmc.datatypes.Vector:
+    if type(val) == pmc.datatypes.Vector or type(val) == type((0, 0, 0)):
         if connect:
             input2.connect(blend.color2)
         else:

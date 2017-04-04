@@ -20,7 +20,7 @@ class DrLimb(systemUtils.DrSystem):
             return 'DrLimb: Please supply 4 joints to build limb from'
 
         # Make duplicate joint chains
-        self.tripleChain = systemUtils.tripleChain(joints=joints, name=self.name)
+        self.tripleChain = systemUtils.tripleChain(joints=joints, name=self.name, flip=1)
 
         self.tripleChain['main_grp'].setParent(self.rig_grp)
         self.const_grp = coreUtils.addParent(self.tripleChain['main_grp'], 'group', '%s_const_grp' % self.name)
@@ -99,6 +99,11 @@ class DrLimb(systemUtils.DrSystem):
         pmc.addAttr( self.ikCtrl, longName='twist', at='double', keyable=True )
         pmc.addAttr( self.ikCtrl, longName='soft', at='double', minValue=0, defaultValue=0, keyable=True )
         pmc.addAttr( self.ikCtrl, longName='mid_pin', at='double', keyable=True, minValue=0, maxValue=1 )
+        pmc.addAttr( self.ikCtrl, longName='flip_poleVector', at='bool', keyable=True, h=0 )
+        pmc.addAttr( self.ikCtrl, longName='force_straight', at='double', keyable=True, h=0, minValue=0.0, maxValue=1.0 )
+		
+        for bc in self.tripleChain['flipBlendColors']:
+            self.ikCtrl.flip_poleVector.connect(bc.blender)
         
         # Soft non-stretchy IK stuff
         ik_grp = coreUtils.addChild(self.rig_grp, 'group', name='%s_ik_GRP' % self.name)
@@ -176,6 +181,24 @@ class DrLimb(systemUtils.DrSystem):
                                    endEffector=self.tripleChain['ikChain'][3],
                                    setupForRPsolver=1)[0]
         endIkHandle.setParent(ikHandleGrp)
+		
+        # Flipped solvers
+        flip_ikHandle = pmc.ikHandle(solver='ikRPsolver',
+                                name='%s_flip_ikHandle' % self.name,
+                                startJoint=self.tripleChain['flipChain'][0],
+                                endEffector=self.tripleChain['flipChain'][2],
+                                setupForRPsolver=1)[0]
+        flip_ikHandle.setParent(ikHandleGrp)
+        self.ikCtrl.twist.connect(flip_ikHandle.twist)
+
+        flip_endIkHandle = pmc.ikHandle(solver='ikSCsolver',
+                                   name='%s_flip_end_ikHandle' % self.name,
+                                   startJoint=self.tripleChain['flipChain'][2],
+                                   endEffector=self.tripleChain['flipChain'][3],
+                                   setupForRPsolver=1)[0]
+        flip_endIkHandle.setParent(ikHandleGrp)
+		
+        self.tripleChain['flipChain'][1].preferredAngleY.set(self.tripleChain['flipChain'][1].preferredAngleY.get() * -1)
 
         # Pole Vector
         pvAimGrp = coreUtils.addChild(self.const_grp, 'group', name='%s_pvAim_GRP' % self.name)
@@ -194,6 +217,14 @@ class DrLimb(systemUtils.DrSystem):
         self.pvZero = coreUtils.addParent(self.pvCtrl, 'group', '%s_pvCtrl_ZERO' % self.name)
         pmc.poleVectorConstraint(self.pvCtrl, ikHandle)
         self.ctrls.append(self.pvCtrl)
+        
+        self.flipPvCtrl = controls.crossCtrl(name='%s_flip_pv_CTRL' % self.name, size=ctrlSize)
+        self.flipPvCtrl.setParent(self.tripleChain['flipChain'][1])
+        self.flipPvCtrl.t.set((0, 0, ctrlSize * (poleOffset*-1)))
+        self.flipPvCtrl.setParent(self.pvZero)
+        self.flipPvZero = coreUtils.addParent(self.flipPvCtrl, 'group', '%s_flipPvCtrl_ZERO' % self.name)
+        pmc.poleVectorConstraint(self.flipPvCtrl, flip_ikHandle)
+        self.ctrls.append(self.flipPvCtrl)
 
         
         # stretchy soft IK stuff
@@ -217,9 +248,10 @@ class DrLimb(systemUtils.DrSystem):
             pinMult = -1.0
         pinUpper_uc = coreUtils.convert(pinUpperDist.distance, pinMult, name='uc_%s_pinUpperDist_UTL' % self.name)
         pinUpperGlobalScale = coreUtils.multiply(globalScaleDiv.outputX, pinUpper_uc.output, name='md_%s_pinUpperGlobalScale_UTL' % self.name)
-        pinUpperBlend = coreUtils.blend(input1=pinUpperGlobalScale.outputX, input2=stretchMidLenPlusBoneLen.output1D, blendAttr=self.ikCtrl.mid_pin, name='bc_%s_pinUpper_UTL')
+        pinUpperBlend = coreUtils.blend(input1=pinUpperGlobalScale.outputX, input2=stretchMidLenPlusBoneLen.output1D, blendAttr=self.ikCtrl.mid_pin, name='bc_%s_pinUpper_UTL' % self.name)
     
-        pinUpperBlend.outputR.connect(self.tripleChain['ikChain'][1].tx)
+        # pinUpperBlend.outputR.connect(self.tripleChain['ikChain'][1].tx)
+        # pinUpperBlend.outputR.connect(self.tripleChain['flipChain'][1].tx)
     
         # Stretchy Bot
         botLen = coreUtils.multiply((self.tripleChain['ikChain'][2].tx.get() / chainLen), scaledSoftDist.outputX, name='md_%s_botLen_UTL' % self.name)
@@ -231,9 +263,20 @@ class DrLimb(systemUtils.DrSystem):
         pinLowerDist = coreUtils.distanceBetweenNodes(softBlend_loc, self.pvCtrl, name='dist_%s_pinLower_UTL' % self.name)
         pinLower_uc = coreUtils.convert(pinLowerDist.distance, pinMult, name='uc_%s_pinLowerDist_UTL' % self.name)
         pinLowerGlobalScale = coreUtils.multiply(globalScaleDiv.outputX, pinLower_uc.output, name='md_%s_pinLowerGlobalScale_UTL' % self.name)
-        pinLowerBlend = coreUtils.blend(input1=pinLowerGlobalScale.outputX, input2=stretchBotLenPlusBoneLen.output1D, blendAttr=self.ikCtrl.mid_pin, name='bc_%s_pinLower_UTL')
+        pinLowerBlend = coreUtils.blend(input1=pinLowerGlobalScale.outputX, input2=stretchBotLenPlusBoneLen.output1D, blendAttr=self.ikCtrl.mid_pin, name='bc_%s_pinLower_UTL' % self.name)
     
-        pinLowerBlend.outputR.connect(self.tripleChain['ikChain'][2].tx)
+        # pinLowerBlend.outputR.connect(self.tripleChain['ikChain'][2].tx)
+        # pinLowerBlend.outputR.connect(self.tripleChain['flipChain'][2].tx)
+
+        # Add ability to force straight arm
+        straightUpper_md = coreUtils.multiply(stretchDist.distance, self.tripleChain['ikChain'][1].tx.get() / chainLen, name='md_%s_midLenTimesChainLen_UTL' % self.name)
+        straightLower_md = coreUtils.multiply(stretchDist.distance, self.tripleChain['ikChain'][2].tx.get() / chainLen, name='md_%s_botLenTimesChainLen_UTL' % self.name)
+        straightUpperBlend = coreUtils.blend(input1=straightUpper_md.outputX, input2=pinUpperBlend.outputR, blendAttr=self.ikCtrl.force_straight, name='bc_%s_straightUpper_UTL' % self.name)
+        straightLowerBlend = coreUtils.blend(input1=straightLower_md.outputX, input2=pinLowerBlend.outputR, blendAttr=self.ikCtrl.force_straight, name='bc_%s_straightLower_UTL' % self.name)
+        straightUpperBlend.outputR.connect(self.tripleChain['ikChain'][1].tx)
+        straightLowerBlend.outputR.connect(self.tripleChain['ikChain'][2].tx)
+        straightUpperBlend.outputR.connect(self.tripleChain['flipChain'][1].tx)
+        straightLowerBlend.outputR.connect(self.tripleChain['flipChain'][2].tx)
         
         # Extract twist
         self.topTwist = coreUtils.extractAxis(self.tripleChain['resultChain'][0], axis='x', name='%s_top_twist' % self.name, exposeNode=self.main_grp, exposeAttr='top_twist')
@@ -252,10 +295,8 @@ class DrLimb(systemUtils.DrSystem):
 
         # connections
         self.exposeSockets({'poleVectorAim': pvAimGrp})
-        if leg:
-            self.exposeSockets({'ikFoot': self.ikCtrl, 'fkFoot': self.fkBtmCtrl})
-        else:
-            self.exposeSockets({'wrist': self.tripleChain['resultChain'][2]})
+        self.exposeSockets({'ikCtrl': self.ikCtrl, 'fkCtrl': self.fkBtmCtrl})
+        self.exposeSockets({'wrist': self.tripleChain['resultChain'][2]})
 
         if cleanup:
             self.cleanup()

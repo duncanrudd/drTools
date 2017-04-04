@@ -28,6 +28,7 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
         self.upAxis = upAxis
         self.worldUpAxis = worldUpAxis
         self.ctrls = []
+        self.bendyTargs = []
         self.buildTwistySegmentCurve(numSegs, numCtrls, startPos, endPos, colour, flipTwist, cleanup)
 
     def buildTwistySegmentCurve(self, numSegs, numCtrls, startPos, endPos, colour, flipTwist, cleanup):
@@ -60,21 +61,42 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
         # controls
         ctrlSize = coreUtils.getDistance(startPos, endPos) * .33
         for i in range(numCtrls):
-            c = controls.squareCtrl(axis=self.axis, size=ctrlSize, name='%s_%s_CTRL' % (self.name, str(i + 1).zfill(2)))
+            num = str(i + 1).zfill(2)
+            c = controls.squareCtrl(axis=self.axis, size=ctrlSize, name='%s_%s_CTRL' % (self.name, num))
             self.ctrls.append(c)
             c.setParent(self.ctrls_grp)
             zero = coreUtils.addParent(c, 'group', c.name().replace('CTRL', 'ZERO'))
-            pmc.pointConstraint(self.start_grp, self.end_grp, zero, mo=0)
-
+            coreUtils.align(zero, self.start_grp)
+            
+            linearTarg = coreUtils.createAlignedNode(zero, 'group', '%s_%s_linear_TGT' % (self.name, num))
+            linearTarg.setParent(self.rig_grp)
+            pmc.pointConstraint(self.start_grp, self.end_grp, linearTarg, mo=0)
             startWeight = (1.0 / (numCtrls + 1)) * (i + 1)
-            pmc.pointConstraint(self.end_grp, zero, e=1, w=startWeight)
-            pmc.pointConstraint(self.start_grp, zero, e=1, w=(1.0 - startWeight))
+            pmc.pointConstraint(self.end_grp, linearTarg, e=1, w=startWeight)
+            pmc.pointConstraint(self.start_grp, linearTarg, e=1, w=(1.0 - startWeight))
+            
+            bendTarg = coreUtils.createAlignedNode(linearTarg, 'group', '%s_%s_bend_TGT' % (self.name, num))
+            bendTarg.setParent(self.rig_grp)
+            self.bendyTargs.append(bendTarg)
+            p = pmc.pointConstraint(linearTarg, bendTarg, zero)
+            pmc.addAttr(c, ln='auto_bend', at='double', minValue=0, maxValue=1, k=1, h=0)
+            pmc.connectAttr('%s.auto_bend' % c, '%s.%sW1' % (p.name(), bendTarg))
+            rev = coreUtils.reverse(c.auto_bend, name='rev_%sAutoBend_UTL' % c.name())
+            rev.outputX.connect('%s.%sW0' % (p, linearTarg))
+
+            
 
             axisDict = {'x': (1, 0, 0), 'y': (0, 1, 0), 'z': (0, 0, 1), '-x': (-1, 0, 0), '-y': (0, -1, 0),
                         '-z': (0, 0, -1)}
-            pmc.aimConstraint(self.end_grp, zero, mo=0, wut='objectRotation', wuo=self.start_grp,
-                              aimVector=axisDict[self.axis], upVector=axisDict[self.upAxis],
-                              worldUpVector=axisDict[self.upAxis])
+            if i < numCtrls / 2:
+                aimVector = (axisDict[self.axis][0] * -1, axisDict[self.axis][1] * -1, axisDict[self.axis][2] * -1)
+                pmc.aimConstraint(self.start_grp, zero, mo=0, wut='objectRotation', wuo=self.start_grp,
+                                  aimVector=aimVector, upVector=axisDict[self.upAxis],
+                                  worldUpVector=axisDict[self.upAxis])
+            else:
+                pmc.aimConstraint(self.end_grp, zero, mo=0, wut='objectRotation', wuo=self.start_grp,
+                                  aimVector=axisDict[self.axis], upVector=axisDict[self.upAxis],
+                                  worldUpVector=axisDict[self.upAxis])
 
             pmc.parentConstraint(c, self.crvLocs[i + 1], mo=0)
 
@@ -86,7 +108,7 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
         if not flipTwist:
             self.twist_pma.output1D.connect(self.main_grp.twist)
         else:
-            flipTwist_uc = coreUtils.convert(self.twist_pma.output1D, -1, 'uc_%s_twistInv_UTL')
+            flipTwist_uc = coreUtils.convert(self.twist_pma.output1D, -1, 'uc_%s_twistInv_UTL' % self.name)
             flipTwist_uc.output.connect(self.main_grp.twist)
         self.twist_pma.operation.set(2)
 
@@ -105,6 +127,26 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
                                    name='%s_twist_%s_uc' % (self.name, str(i + 1).zfill(2)))
             attrDict = {'x': j.rx, 'y': j.ry, 'z': j.rz, '-x': j.rx, '-y': j.ry, '-z': j.rz}
             uc.output.connect(attrDict[self.axis])
+
+        # crvInfo
+        crvInfo = pmc.createNode('curveInfo', name='%s_crvInfo' % self.name)
+        crvShape = coreUtils.getShape(self.crv)
+        crvShape.worldSpace[0].connect(crvInfo.inputCurve)
+
+        # stretch
+        pmc.addAttr(self.main_grp, longName='stretch', at='double', k=1, h=0)
+        restLenMD = coreUtils.multiply(crvInfo.arcLength.get(), self.main_grp.globalScale, name='md_%s_restLength_UTL' % self.name)
+        stretchMD = coreUtils.divide(restLenMD.outputX, crvInfo.arcLength, name='md_%s_stretch_UTL' % self.name)
+        stretchMD.outputX.connect(self.main_grp.stretch)
+
+        # squetch
+        secondAxis = [axis for axis in ['x', 'y', 'z'] if not axis in [self.axis, self.upAxis]][0]
+        for i in range(numSegs):
+            num = str(i + 1).zfill(2)
+            attr = pmc.addAttr(self.main_grp, longName='squetch_%s_amount' % str(i+1).zfill(2), at='double', k=1, h=0)
+            blend = coreUtils.blend(self.main_grp.stretch, 1.0, name='blend_%s_squetch_%s_UTL' % (self.name, num), blendAttr=self.main_grp.attr('squetch_%s_amount' % num))
+            blend.outputR.connect('%s.s%s' % (mps['grps'][i], secondAxis))
+            blend.outputR.connect('%s.s%s' % (mps['grps'][i], self.upAxis[-1]))
 
         # colours
         coreUtils.colorize(colour, self.ctrls)
@@ -187,6 +229,25 @@ class DrTwistySegmentSimple(systemUtils.DrSystem):
                 o.interpType.set(2)
                 pmc.orientConstraint(mps['grps'][0], j, e=1, w=startWeight)
                 pmc.orientConstraint(mps['grps'][-1], j, e=1, w=(1.0-startWeight))
+
+        # crvInfo
+        crvInfo = pmc.createNode('curveInfo', name='%s_crvInfo' % self.name)
+        crvShape = coreUtils.getShape(self.crv)
+        crvShape.worldSpace[0].connect(crvInfo.inputCurve)
+
+        # stretch
+        pmc.addAttr(self.main_grp, longName='stretch', at='double', k=1, h=0)
+        restLenMD = coreUtils.multiply(crvInfo.arcLength.get(), self.main_grp.globalScale, name='md_%s_restLength_UTL' % self.name)
+        stretchMD = coreUtils.divide(restLenMD.outputX, crvInfo.arcLength, name='md_%s_stretch_UTL' % self.name)
+        stretchMD.outputX.connect(self.main_grp.stretch)
+
+        # squetch
+        for i in range(numSegs):
+            num = str(i + 1).zfill(2)
+            attr = pmc.addAttr(self.main_grp, longName='squetch_%s_amount' % str(i+1).zfill(2), at='double', k=1, h=0)
+            blend = coreUtils.blend(self.main_grp.stretch, 1.0, name='blend_%s_squetch_%s_UTL' % (self.name, num), blendAttr=self.main_grp.attr('squetch_%s_amount' % num))
+            blend.outputR.connect(mps['grps'][i].sx)
+            blend.outputR.connect(mps['grps'][i].sz)
 
         if cleanup:
             self.cleanup()

@@ -29,14 +29,10 @@ class DrReverseFoot(systemUtils.DrSystem):
             return 'DrReverseFoot: Please supply or select joints for Ankle, Foot, Ball, Toe, Inner, Outer and Heel positions.'
 
         # Make duplicate joint chains
-        self.tripleChain = systemUtils.tripleChain(joints=[ankle, foot, ball, toe], name=self.name)
+        self.tripleChain = systemUtils.tripleChain(joints=[ankle, foot, ball, toe], name=self.name, flip=0)
         ikConst_grp = coreUtils.addParent(self.tripleChain['ikChain'][0], 'group', '%s_ikConst_GRP' % self.name)
         fkConst_grp = coreUtils.addParent(self.tripleChain['fkChain'][0], 'group', '%s_fkConst_GRP' % self.name)
         resultConst_grp = coreUtils.addParent(self.tripleChain['resultChain'][0], 'group', '%s_resultConst_GRP' % self.name)
-        #bcT = coreUtils.blend(fkConst_grp.t, ikConst_grp.t, name='bc_%s_constGrp_translate_UTL' % self.name)
-        #bcT.output.connect(resultConst_grp.t)
-        #bcR = coreUtils.blend(fkConst_grp.r, ikConst_grp.r, name='bc_%s_constGrp_rotate_UTL' % self.name)
-        #bcR.output.connect(resultConst_grp.r)
 
         self.tripleChain['main_grp'].setParent(self.rig_grp)
 
@@ -45,10 +41,9 @@ class DrReverseFoot(systemUtils.DrSystem):
             attr = pmc.Attribute('%s.%sW1' % (par.name(), fkConst_grp.name()))
             blendAttr.connect(attr)
             attr = pmc.Attribute('%s.%sW0' % (par.name(), ikConst_grp.name()))
-            blend_rev = coreUtils.reverse(blendAttr, -1.0, 'reverse_%s_blend, UTL' % self.name)
-            blend_rev.output.connect(attr)
-            #blendAttr.connect(bcT.blender)
-            #blendAttr.connect(bcR.blender)
+            blend_rev = coreUtils.reverse(blendAttr, 'reverse_%s_blend, UTL' % self.name)
+            blend_rev.outputX.connect(attr)
+            
             for bc in self.tripleChain['blendColors']:
                 blendAttr.connect(bc.blender)
 

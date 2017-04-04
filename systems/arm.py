@@ -12,7 +12,7 @@ reload(drLimb)
 reload(drTwistySegment)
 
 class DrArm(drLimb.DrLimb):
-    def __init__(self, name='', joints=None, cleanup=0, colour='red', numTwistSegs=8, flipTwist=0, upAxis='y', leg=0):
+    def __init__(self, name='', joints=None, cleanup=0, colour='red', numTwistSegs=8, upAxis='y', leg=0, flipTwist=0):
         super(DrArm, self).__init__(name, joints=joints, leg=leg)
         self.buildArm(colour, numTwistSegs, flipTwist, upAxis)
 
@@ -23,12 +23,14 @@ class DrArm(drLimb.DrLimb):
         self.settingsCtrl.bendy_ctrls_vis.connect(self.bendyCtrls_grp.visibility)
 
         # Elbow ctrl
+        elbowAim = coreUtils.addChild(self.const_grp, 'locator', '%s_elbowOrient_LOC' % self.name)
+        pmc.aimConstraint(self.tripleChain['resultChain'][2], elbowAim, mo=0, wut='objectRotation', wuo=self.topTwist['nonRoll'])
         ctrlSize = coreUtils.getDistance(self.tripleChain['resultChain'][0], self.tripleChain['resultChain'][1]) * .25
         self.elbowCtrl = controls.squareCtrl(axis='x', size=ctrlSize, name='%s_elbow_CTRL' % self.name)
-        coreUtils.align(self.elbowCtrl, self.tripleChain['resultChain'][1])
         self.elbowCtrl.setParent(self.bendyCtrls_grp)
         elbowZero = coreUtils.addParent(self.elbowCtrl, 'group', '%s_elbowCtrl_ZERO' % self.name)
-        pmc.parentConstraint(self.tripleChain['resultChain'][1], elbowZero, mo=0)
+        pmc.pointConstraint(self.tripleChain['resultChain'][1], elbowZero, mo=0)
+        pmc.orientConstraint(elbowAim, elbowZero, mo=0)
         self.ctrls.append(self.elbowCtrl)
 
         # Twisty Segments
@@ -50,7 +52,11 @@ class DrArm(drLimb.DrLimb):
         pmc.pointConstraint(self.elbowCtrl, self.upperTwist.end_grp, mo=1)
         self.main_grp.mid_twist.connect(self.upperTwist.twist_pma.input1D[0])
         elbowTwist_inv = coreUtils.convert(self.elbowCtrl.rx, -57.2958, name='uc_%s_elbowTwistInvert_UTL' % self.name)
-        elbowTwist_inv.output.connect(self.upperTwist.twist_pma.input1D[1])
+        if flipTwist:
+            self.elbowCtrl.rx.connect(self.upperTwist.twist_pma.input1D[1])
+        else:
+            elbowTwist_inv.output.connect(self.upperTwist.twist_pma.input1D[1])
+        pmc.parentConstraint(self.elbowCtrl, self.upperTwist.bendyTargs[-1], mo=1)
 
         self.main_grp.globalScale.connect(self.upperTwist.main_grp.globalScale)
 
@@ -68,11 +74,18 @@ class DrArm(drLimb.DrLimb):
                                                                cleanup=1)
         self.lowerTwist.main_grp.setParent(self.bendyCtrls_grp)
         self.lowerTwist.main_grp.inheritsTransform.set(0)
-        pmc.parentConstraint(self.elbowCtrl, self.lowerTwist.start_grp, mo=1)
+        p = pmc.parentConstraint(self.elbowCtrl, self.lowerTwist.start_grp, mo=1)
+        if flipTwist:
+            uc = coreUtils.convert(self.main_grp.mid_twist, -.017, name='uc_%s_midTwistInvert_UTL' % self.name)
+            uc.output.connect(p.target[0].targetOffsetRotate.targetOffsetRotateX)
+            elbowTwist_inv.output.connect(self.lowerTwist.twist_pma.input1D[1])
+        else:
+            self.main_grp.mid_twist.connect(p.target[0].targetOffsetRotate.targetOffsetRotateX)
+            self.elbowCtrl.rx.connect(self.lowerTwist.twist_pma.input1D[1])
         pmc.parentConstraint(self.tripleChain['resultChain'][2], self.lowerTwist.end_grp, mo=1)
         self.main_grp.btm_twist.connect(self.lowerTwist.twist_pma.input1D[0])
-        self.elbowCtrl.rx.connect(self.lowerTwist.twist_pma.input1D[1])
         self.main_grp.globalScale.connect(self.lowerTwist.main_grp.globalScale)
+        pmc.parentConstraint(self.elbowCtrl, self.lowerTwist.bendyTargs[0], mo=1)
 
         # Average joints
         startAvgJnt = coreUtils.addChild(self.rig_grp, 'joint', '%s_startAvg_JNT' % self.name)

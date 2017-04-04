@@ -253,9 +253,9 @@ class DrBiped(object):
                                                         inner=pmc.PyNode('rt_footInner_GD'),
                                                         outer=pmc.PyNode('rt_footOuter_GD'),
                                                         blendAttr=self.rtLegSystem.settingsCtrl.ik_fk_blend)
-        p = systemUtils.plug(self.rtFootSystem.ikCtrls_grp, self.rtLegSystem.sockets['ikFoot'], name='rt_ikFoot')
+        p = systemUtils.plug(self.rtFootSystem.ikCtrls_grp, self.rtLegSystem.sockets['ikCtrl'], name='rt_ikFoot')
         p.setParent(self.rtFootSystem.plugs_grp)
-        p = systemUtils.plug(self.rtFootSystem.fkCtrls_grp, self.rtLegSystem.sockets['fkFoot'], name='rt_fkFoot')
+        p = systemUtils.plug(self.rtFootSystem.fkCtrls_grp, self.rtLegSystem.sockets['fkCtrl'], name='rt_fkFoot')
         p.setParent(self.rtFootSystem.plugs_grp)
 
         self.rtLegSystem.fkCtrls_grp.visibility.connect(self.rtFootSystem.fkCtrls_grp.visibility)
@@ -276,9 +276,9 @@ class DrBiped(object):
                                                         inner=pmc.PyNode('lf_footInner_GD'),
                                                         outer=pmc.PyNode('lf_footOuter_GD'),
                                                         blendAttr=self.lfLegSystem.settingsCtrl.ik_fk_blend)
-        p = systemUtils.plug(self.lfFootSystem.ikCtrls_grp, self.lfLegSystem.sockets['ikFoot'], name='lf_ikFoot')
+        p = systemUtils.plug(self.lfFootSystem.ikCtrls_grp, self.lfLegSystem.sockets['ikCtrl'], name='lf_ikFoot')
         p.setParent(self.lfFootSystem.plugs_grp)
-        p = systemUtils.plug(self.lfFootSystem.fkCtrls_grp, self.lfLegSystem.sockets['fkFoot'], name='lf_fkFoot')
+        p = systemUtils.plug(self.lfFootSystem.fkCtrls_grp, self.lfLegSystem.sockets['fkCtrl'], name='lf_fkFoot')
         p.setParent(self.lfFootSystem.plugs_grp)
 
         self.lfLegSystem.fkCtrls_grp.visibility.connect(self.lfFootSystem.fkCtrls_grp.visibility)
