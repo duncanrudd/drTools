@@ -147,7 +147,7 @@ def nodesAlongCurve(crv=None, numNodes=6, name='', followAxis='x', upAxis='y', u
         if invertFront:
             mp.inverseFront.set(1)
         mp.upAxis.set(axisDict[upAxis])
-        if invertFront:
+        if invertUp:
             mp.inverseUp.set(1)
         mp.worldUpVector.set(upDict[upAxis])
         if upNode:

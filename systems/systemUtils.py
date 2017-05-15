@@ -169,6 +169,16 @@ def tripleChain(name='', joints=None, flip=0):
     flipChain = []
     if flip:
         flipChain = _duplicateChain('ikFlip_JNT')
+        flipAim = coreUtils.addChild(main_grp, 'group', '%s_ikFlip_aim_GRP' % name)
+        pmc.aimConstraint(ikChain[2], flipAim, wut='objectRotation', wuo=ikChain[0])
+        flipInfo = coreUtils.addChild(flipAim, 'locator', '%s_ikFlip_INF' % name)
+        pmc.orientConstraint(ikChain[0], flipInfo, mo=0)
+        flipChain[0].r.set(flipInfo.rx.get() * -2, flipInfo.ry.get() * -2, flipInfo.rz.get() * -2)
+        jo = (flipChain[1].jointOrientX.get()*-2, flipChain[1].jointOrientY.get()*-2, flipChain[1].jointOrientZ.get()*-2)
+        flipChain[1].r.set(jo)
+        flipChain[2].r.set(jo[0]*-.5, jo[1]*-.5, jo[2]*-.5)
+        pmc.delete(flipAim)
+
     blendColors = []
     flipBlendColors = []
 

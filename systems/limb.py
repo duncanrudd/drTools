@@ -8,19 +8,19 @@ reload(coreUtils)
 reload(systemUtils)
 
 class DrLimb(systemUtils.DrSystem):
-    def __init__(self, name='', joints=None, leg=0, cleanup=1):
+    def __init__(self, name='', joints=None, leg=0, flip=1, alignIkToJoints=0, cleanup=1):
         if not joints and len(pmc.selected()) == 4:
             joints = pmc.selected()
         self.ctrls = []
         super(DrLimb, self).__init__(name)
-        self.buildLimb(joints, leg, cleanup)
+        self.buildLimb(joints, leg, cleanup, alignIkToJoints, flip)
 
-    def buildLimb(self, joints, leg, cleanup):
+    def buildLimb(self, joints, leg, cleanup, alignIkToJoints, flip=1):
         if not joints:
             return 'DrLimb: Please supply 4 joints to build limb from'
 
         # Make duplicate joint chains
-        self.tripleChain = systemUtils.tripleChain(joints=joints, name=self.name, flip=1)
+        self.tripleChain = systemUtils.tripleChain(joints=joints, name=self.name, flip=flip)
 
         self.tripleChain['main_grp'].setParent(self.rig_grp)
         self.const_grp = coreUtils.addParent(self.tripleChain['main_grp'], 'group', '%s_const_grp' % self.name)
@@ -87,7 +87,19 @@ class DrLimb(systemUtils.DrSystem):
 
         # IK ctrl
         self.ikCtrl = controls.boxCtrl(name='%s_ik_CTRL' % self.name, size=ctrlSize)
-        coreUtils.align(self.ikCtrl, self.tripleChain['ikChain'][2], orient=0)
+        if alignIkToJoints:
+            if leg:
+                pmc.xform(self.ikCtrl, ws=1, m=coreUtils.getAimMatrix(start=joints[2],
+                                                                      end=joints[3],
+                                                                      axis='z', upAxis='y', worldUpAxis=alignIkToJoints,
+                                                                      upNode=joints[2]))
+            else:
+                pmc.xform(self.ikCtrl, ws=1, m=coreUtils.getAimMatrix(start=joints[2],
+                                                                      end=joints[3],
+                                                                      axis='-x', upAxis='y', worldUpAxis=alignIkToJoints,
+                                                                      upNode=joints[2]))
+        else:
+            coreUtils.align(self.ikCtrl, self.tripleChain['ikChain'][2], orient=0)
         self.ikCtrl.setParent(self.ctrls_grp)
         self.ikCtrls_grp = coreUtils.addParent(self.ikCtrl, 'group', '%s_ikCtrls_ZERO' % self.name)
         self.ctrls.append(self.ikCtrl)
@@ -99,7 +111,8 @@ class DrLimb(systemUtils.DrSystem):
         pmc.addAttr( self.ikCtrl, longName='twist', at='double', keyable=True )
         pmc.addAttr( self.ikCtrl, longName='soft', at='double', minValue=0, defaultValue=0, keyable=True )
         pmc.addAttr( self.ikCtrl, longName='mid_pin', at='double', keyable=True, minValue=0, maxValue=1 )
-        pmc.addAttr( self.ikCtrl, longName='flip_poleVector', at='bool', keyable=True, h=0 )
+        if flip:
+            pmc.addAttr( self.ikCtrl, longName='flip_poleVector', at='bool', keyable=True, h=0 )
         pmc.addAttr( self.ikCtrl, longName='force_straight', at='double', keyable=True, h=0, minValue=0.0, maxValue=1.0 )
 		
         for bc in self.tripleChain['flipBlendColors']:
@@ -181,24 +194,24 @@ class DrLimb(systemUtils.DrSystem):
                                    endEffector=self.tripleChain['ikChain'][3],
                                    setupForRPsolver=1)[0]
         endIkHandle.setParent(ikHandleGrp)
-		
-        # Flipped solvers
-        flip_ikHandle = pmc.ikHandle(solver='ikRPsolver',
-                                name='%s_flip_ikHandle' % self.name,
-                                startJoint=self.tripleChain['flipChain'][0],
-                                endEffector=self.tripleChain['flipChain'][2],
-                                setupForRPsolver=1)[0]
-        flip_ikHandle.setParent(ikHandleGrp)
-        self.ikCtrl.twist.connect(flip_ikHandle.twist)
 
-        flip_endIkHandle = pmc.ikHandle(solver='ikSCsolver',
-                                   name='%s_flip_end_ikHandle' % self.name,
-                                   startJoint=self.tripleChain['flipChain'][2],
-                                   endEffector=self.tripleChain['flipChain'][3],
-                                   setupForRPsolver=1)[0]
-        flip_endIkHandle.setParent(ikHandleGrp)
-		
-        self.tripleChain['flipChain'][1].preferredAngleY.set(self.tripleChain['flipChain'][1].preferredAngleY.get() * -1)
+        # Flipped solvers
+        if flip:
+            self.tripleChain['flipChain'][1].preferredAngleY.set(self.tripleChain['flipChain'][1].ry.get())
+            flip_ikHandle = pmc.ikHandle(solver='ikRPsolver',
+                                    name='%s_flip_ikHandle' % self.name,
+                                    startJoint=self.tripleChain['flipChain'][0],
+                                    endEffector=self.tripleChain['flipChain'][2],
+                                    setupForRPsolver=1)[0]
+            flip_ikHandle.setParent(ikHandleGrp)
+            self.ikCtrl.twist.connect(flip_ikHandle.twist)
+
+            flip_endIkHandle = pmc.ikHandle(solver='ikSCsolver',
+                                       name='%s_flip_end_ikHandle' % self.name,
+                                       startJoint=self.tripleChain['flipChain'][2],
+                                       endEffector=self.tripleChain['flipChain'][3],
+                                       setupForRPsolver=1)[0]
+            flip_endIkHandle.setParent(ikHandleGrp)
 
         # Pole Vector
         pvAimGrp = coreUtils.addChild(self.const_grp, 'group', name='%s_pvAim_GRP' % self.name)
@@ -217,14 +230,15 @@ class DrLimb(systemUtils.DrSystem):
         self.pvZero = coreUtils.addParent(self.pvCtrl, 'group', '%s_pvCtrl_ZERO' % self.name)
         pmc.poleVectorConstraint(self.pvCtrl, ikHandle)
         self.ctrls.append(self.pvCtrl)
-        
-        self.flipPvCtrl = controls.crossCtrl(name='%s_flip_pv_CTRL' % self.name, size=ctrlSize)
-        self.flipPvCtrl.setParent(self.tripleChain['flipChain'][1])
-        self.flipPvCtrl.t.set((0, 0, ctrlSize * (poleOffset*-1)))
-        self.flipPvCtrl.setParent(self.pvZero)
-        self.flipPvZero = coreUtils.addParent(self.flipPvCtrl, 'group', '%s_flipPvCtrl_ZERO' % self.name)
-        pmc.poleVectorConstraint(self.flipPvCtrl, flip_ikHandle)
-        self.ctrls.append(self.flipPvCtrl)
+
+        if flip:
+            self.flipPvCtrl = controls.crossCtrl(name='%s_flip_pv_CTRL' % self.name, size=ctrlSize)
+            self.flipPvCtrl.setParent(self.tripleChain['flipChain'][1])
+            self.flipPvCtrl.t.set((0, 0, ctrlSize * (poleOffset*-1)))
+            self.flipPvCtrl.setParent(self.pvZero)
+            self.flipPvZero = coreUtils.addParent(self.flipPvCtrl, 'group', '%s_flipPvCtrl_ZERO' % self.name)
+            pmc.poleVectorConstraint(self.flipPvCtrl, flip_ikHandle)
+            self.ctrls.append(self.flipPvCtrl)
 
         
         # stretchy soft IK stuff
@@ -275,8 +289,10 @@ class DrLimb(systemUtils.DrSystem):
         straightLowerBlend = coreUtils.blend(input1=straightLower_md.outputX, input2=pinLowerBlend.outputR, blendAttr=self.ikCtrl.force_straight, name='bc_%s_straightLower_UTL' % self.name)
         straightUpperBlend.outputR.connect(self.tripleChain['ikChain'][1].tx)
         straightLowerBlend.outputR.connect(self.tripleChain['ikChain'][2].tx)
-        straightUpperBlend.outputR.connect(self.tripleChain['flipChain'][1].tx)
-        straightLowerBlend.outputR.connect(self.tripleChain['flipChain'][2].tx)
+
+        if flip:
+            straightUpperBlend.outputR.connect(self.tripleChain['flipChain'][1].tx)
+            straightLowerBlend.outputR.connect(self.tripleChain['flipChain'][2].tx)
         
         # Extract twist
         self.topTwist = coreUtils.extractAxis(self.tripleChain['resultChain'][0], axis='x', name='%s_top_twist' % self.name, exposeNode=self.main_grp, exposeAttr='top_twist')

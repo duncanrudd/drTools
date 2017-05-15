@@ -519,7 +519,23 @@ def extractAxis(node, axis, name, exposeNode=None, exposeAttr='twist'):
 #
 #
 
-def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y'):
+def getAxisVector(node=None, axis='x'):
+    '''
+    returns the world space vector representing the direction of node's axis
+    '''
+    matrix = pmc.xform(node, q=1, m=1, ws=1)
+    axisDict = {'x':matrix[0:3], 'y':matrix[4:7], 'z':matrix[8:11], '-x':matrix[0:3], '-y':matrix[4:7], '-z':matrix[8:11]}
+    outVec = axisDict[axis]
+    if '-' in axis:
+        outVec = [outVec[0]*-1, outVec[1]*-1, outVec[2]*-1]
+    return outVec
+#
+#
+#
+
+
+
+def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y', upNode=None):
     '''
     Given two nodes or two points, returns a matrix positioned at start, aiming at end along axis
     Similar to oorient joint.
@@ -535,6 +551,8 @@ def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y'):
     startVec = pmc.datatypes.Vector(startPos[0], startPos[1], startPos[2])
     endVec = pmc.datatypes.Vector(endPos[0], endPos[1], endPos[2])
     upVec = pmc.datatypes.Vector(axisDict[worldUpAxis])
+    if upNode:
+        upVec = pmc.datatypes.Vector(getAxisVector(node=upNode, axis=worldUpAxis))
     aimVec = None
     if '-' in axis:
         aimVec = startVec - endVec
@@ -548,8 +566,9 @@ def getAimMatrix(start=None, end=None, axis='x', upAxis='y', worldUpAxis='y'):
     matrixList[orderDict[axis]] = aimVec
     matrixList[orderDict[upAxis]] = tangentVec
     matrixList[matrixList.index('')] = normalVec
-
     outMatrix = pmc.datatypes.Matrix(matrixList)
+
+    print outMatrix
 
     return outMatrix
 

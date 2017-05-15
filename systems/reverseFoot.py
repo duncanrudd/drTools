@@ -11,13 +11,9 @@ reload(systemUtils)
 class DrReverseFoot(systemUtils.DrSystem):
     def __init__(self, name, ankle=None, foot=None, ball=None, toe=None, inner=None, outer=None, heel=None,
                  settingsNode=None, blendAttr=None, colour='red', cleanup=1):
-        super(DrReverseFoot, self).__init__(name=name)
         self.ctrls=[]
-        self.buildFoot(ankle, foot, ball, toe, inner, outer, heel, settingsNode, blendAttr, colour, cleanup)
-
-    def buildFoot(self, ankle, foot, ball, toe, inner, outer, heel, settingsNode, blendAttr, colour, cleanup):
-        if not ankle and len(pmc.selcted()) == 7:
-            sel = pmc.selcted()
+        if not ankle and len(pmc.selected()) == 7:
+            sel = pmc.selected()
             ankle = sel[0]
             foot = sel[1]
             ball = sel[2]
@@ -27,6 +23,10 @@ class DrReverseFoot(systemUtils.DrSystem):
             heel = sel[6]
         if not ankle:
             return 'DrReverseFoot: Please supply or select joints for Ankle, Foot, Ball, Toe, Inner, Outer and Heel positions.'
+        super(DrReverseFoot, self).__init__(name=name)
+        self.buildFoot(ankle, foot, ball, toe, inner, outer, heel, settingsNode, blendAttr, colour, cleanup)
+
+    def buildFoot(self, ankle, foot, ball, toe, inner, outer, heel, settingsNode, blendAttr, colour, cleanup):
 
         # Make duplicate joint chains
         self.tripleChain = systemUtils.tripleChain(joints=[ankle, foot, ball, toe], name=self.name, flip=0)
@@ -60,7 +60,7 @@ class DrReverseFoot(systemUtils.DrSystem):
                                     endEffector=self.tripleChain['ikChain'][1],
                                     setupForRPsolver=1)[0]
         footIkHandle.setParent(self.rig_grp)
-        footIkHandleConst = coreUtils.addParent(footIkHandle, 'group', '%s_footIkHandle_CONST')
+        footIkHandleConst = coreUtils.addParent(footIkHandle, 'group', '%s_footIkHandle_CONST' % self.name)
 
         ballIkHandle = pmc.ikHandle(solver='ikRPsolver',
                                     name='%s_ball_ikHandle' % self.name,
@@ -68,7 +68,7 @@ class DrReverseFoot(systemUtils.DrSystem):
                                     endEffector=self.tripleChain['ikChain'][2],
                                     setupForRPsolver=1)[0]
         ballIkHandle.setParent(self.rig_grp)
-        ballIkHandleConst = coreUtils.addParent(ballIkHandle, 'group', '%s_ballIkHandle_CONST')
+        ballIkHandleConst = coreUtils.addParent(ballIkHandle, 'group', '%s_ballIkHandle_CONST' % self.name)
 
         toeIkHandle = pmc.ikHandle(solver='ikRPsolver',
                                    name='%s_toe_ikHandle' % self.name,
@@ -76,7 +76,7 @@ class DrReverseFoot(systemUtils.DrSystem):
                                    endEffector=self.tripleChain['ikChain'][3],
                                    setupForRPsolver=1)[0]
         toeIkHandle.setParent(self.rig_grp)
-        toeIkHandleConst = coreUtils.addParent(toeIkHandle, 'group', '%s_toeIkHandle_CONST')
+        toeIkHandleConst = coreUtils.addParent(toeIkHandle, 'group', '%s_toeIkHandle_CONST' % self.name)
 
         # ikCtrls
         self.heelIkCtrl = controls.squareCtrl(name='%s_heel_ik_CTRL' % self.name, axis=axis, size=ctrlSize)
@@ -105,7 +105,7 @@ class DrReverseFoot(systemUtils.DrSystem):
         self.ballPivotIkCtrl.setParent(self.outerLoc)
         coreUtils.addParent(self.ballPivotIkCtrl, 'group', '%s_ballPivotIkCtrl_ZERO' % self.name)
         inv_grp = coreUtils.addParent(self.ballPivotIkCtrl, 'group', '%s_ballPivotIkCtrlRotX_INV' % self.name)
-        inv_uc = coreUtils.convert(self.ballPivotIkCtrl.rx, -1.0, name='uc_%s_ballPivotIkCtrlRotX_UTL')
+        inv_uc = coreUtils.convert(self.ballPivotIkCtrl.rx, -1.0, name='uc_%s_ballPivotIkCtrlRotX_UTL' % self.name)
         inv_uc.output.connect(inv_grp.rx)
 
         pmc.parentConstraint(self.ballPivotIkCtrl, toeIkHandleConst, mo=1)

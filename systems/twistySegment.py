@@ -19,7 +19,7 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
     '''
 
     def __init__(self, name, start=None, end=None, numSegs=8, numCtrls=2, axis='x', upAxis='y', worldUpAxis='y',
-                 colour='yellow', flipTwist=0, cleanup=1):
+                 colour='yellow', flipTwist=0, upNode=None, cleanup=1):
         startPos, endPos = coreUtils.getStartAndEnd(start, end)
         if not startPos or not endPos:
             return 'DrTwistySegmentCurve: Unable to determine start and end positions'
@@ -27,6 +27,7 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
         self.axis = axis
         self.upAxis = upAxis
         self.worldUpAxis = worldUpAxis
+        self.upNode = upNode
         self.ctrls = []
         self.bendyTargs = []
         self.buildTwistySegmentCurve(numSegs, numCtrls, startPos, endPos, colour, flipTwist, cleanup)
@@ -45,16 +46,16 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
 
         # start and end groups
         self.start_grp = pmc.group(empty=1, name='%s_start_GRP' % self.name)
-        startMatrix = coreUtils.getAimMatrix(startPos, endPos, self.axis, self.upAxis, self.worldUpAxis)
+        startMatrix = coreUtils.getAimMatrix(startPos, endPos, self.axis, self.upAxis, self.worldUpAxis, upNode=self.upNode)
         pmc.xform(self.start_grp, matrix=startMatrix, ws=1)
         self.start_grp.setParent(self.ctrls_grp)
-        pmc.parentConstraint(self.start_grp, self.crvLocs[0], mo=0)
+        pmc.parentConstraint(self.start_grp, self.crvLocs[0], mo=1)
 
         self.end_grp = pmc.group(empty=1, name='%s_end_GRP' % self.name)
         pmc.xform(self.end_grp, matrix=startMatrix, ws=1)
         self.end_grp.t.set(endPos)
         self.end_grp.setParent(self.ctrls_grp)
-        pmc.parentConstraint(self.end_grp, self.crvLocs[-1], mo=0)
+        pmc.parentConstraint(self.end_grp, self.crvLocs[-1], mo=1)
 
         ctrlPoints = coreUtils.pointsAlongVector(startPos, endPos, divisions=(numCtrls + 1))[1:-1]
 
@@ -105,11 +106,13 @@ class DrTwistySegmentCurve(systemUtils.DrSystem):
                                          upAxis=self.upAxis, upVec=self.upAxis, upNode=self.start_grp)
         pmc.addAttr(self.main_grp, longName='twist', at='double', k=1, h=0)
         self.twist_pma = pmc.createNode('plusMinusAverage', name='pma_%s_twistTotal_UTL' % self.name)
+
         if not flipTwist:
             self.twist_pma.output1D.connect(self.main_grp.twist)
         else:
             flipTwist_uc = coreUtils.convert(self.twist_pma.output1D, -1, 'uc_%s_twistInv_UTL' % self.name)
             flipTwist_uc.output.connect(self.main_grp.twist)
+
         self.twist_pma.operation.set(2)
 
         for i in range(numSegs):

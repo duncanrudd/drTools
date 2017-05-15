@@ -295,15 +295,18 @@ class DrBiped(object):
                                               'pinky': [pmc.PyNode(j) for j in ['rt_pinky_1_GD',
                                                                                 'rt_pinky_2_GD',
                                                                                 'rt_pinky_3_GD',
-                                                                                'rt_pinky_4_GD']],
+                                                                                'rt_pinky_4_GD',
+                                                                                'rt_pinky_5_GD']],
                                               'mid': [pmc.PyNode(j) for j in ['rt_mid_1_GD',
                                                                               'rt_mid_2_GD',
                                                                               'rt_mid_3_GD',
-                                                                              'rt_mid_4_GD']],
+                                                                              'rt_mid_4_GD',
+                                                                              'rt_mid_5_GD']],
                                               'index': [pmc.PyNode(j) for j in ['rt_index_1_GD',
                                                                                 'rt_index_2_GD',
                                                                                 'rt_index_3_GD',
-                                                                                'rt_index_4_GD']],
+                                                                                'rt_index_4_GD',
+                                                                                'rt_index_5_GD']],
                                               'thumb': [pmc.PyNode(j) for j in ['rt_thumb_1_GD',
                                                                                 'rt_thumb_2_GD',
                                                                                 'rt_thumb_3_GD',
@@ -318,15 +321,18 @@ class DrBiped(object):
                                               'pinky': [pmc.PyNode(j) for j in ['lf_pinky_1_GD',
                                                                                 'lf_pinky_2_GD',
                                                                                 'lf_pinky_3_GD',
-                                                                                'lf_pinky_4_GD']],
+                                                                                'lf_pinky_4_GD',
+                                                                                'lf_pinky_5_GD']],
                                               'mid': [pmc.PyNode(j) for j in ['lf_mid_1_GD',
                                                                               'lf_mid_2_GD',
                                                                               'lf_mid_3_GD',
-                                                                              'lf_mid_4_GD']],
+                                                                              'lf_mid_4_GD',
+                                                                              'lf_mid_5_GD']],
                                               'index': [pmc.PyNode(j) for j in ['lf_index_1_GD',
                                                                                 'lf_index_2_GD',
                                                                                 'lf_index_3_GD',
-                                                                                'lf_index_4_GD']],
+                                                                                'lf_index_4_GD',
+                                                                                'lf_index_5_GD']],
                                               'thumb': [pmc.PyNode(j) for j in ['lf_thumb_1_GD',
                                                                                 'lf_thumb_2_GD',
                                                                                 'lf_thumb_3_GD',
@@ -370,9 +376,8 @@ def publishJoints(rig, systems):
     for each system, makes a group under rig.bind_GRP. Makes a copy of each joint in system.joints and constrains it
     to the corresponding system joint.
     '''
+    pmc.select(None)
+    bindSet = pmc.sets(name='bind_SET')
     for system in systems:
-        grp = coreUtils.addChild(rig.bind_grp, 'group', '%s_bind_GRP' % system.name)
-        for joint in system.joints:
-            j = coreUtils.addChild(grp, 'joint', joint.name().replace('JNT', 'BND'))
-            pmc.parentConstraint(joint, j, mo=0)
-            pmc.scaleConstraint(joint, j, mo=0)
+        pmc.select(system.joints)
+        set = pmc.sets(name='%s_bind_SET' % system.name)
