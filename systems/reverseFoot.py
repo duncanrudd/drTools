@@ -43,7 +43,7 @@ class DrReverseFoot(systemUtils.DrSystem):
             attr = pmc.Attribute('%s.%sW0' % (par.name(), ikConst_grp.name()))
             blend_rev = coreUtils.reverse(blendAttr, 'reverse_%s_blend, UTL' % self.name)
             blend_rev.outputX.connect(attr)
-            
+
             for bc in self.tripleChain['blendColors']:
                 blendAttr.connect(bc.blender)
 
@@ -94,11 +94,11 @@ class DrReverseFoot(systemUtils.DrSystem):
 
         self.innerLoc = coreUtils.createAlignedNode(inner, 'group', '%s_inner_GRP' % self.name)
         self.innerLoc.setParent(self.toeIkCtrl)
-        innerZero = coreUtils.addParent(self.innerLoc, 'group', '%s_innerZero_ZERO' % self.name)
+        innerZero = coreUtils.addParent(self.innerLoc, 'group', '%s_inner_ZERO' % self.name)
 
         self.outerLoc = coreUtils.createAlignedNode(outer, 'group', '%s_outer_GRP' % self.name)
         self.outerLoc.setParent(self.innerLoc)
-        outerZero = coreUtils.addParent(self.outerLoc, 'group', '%s_outerZero_ZERO' % self.name)
+        outerZero = coreUtils.addParent(self.outerLoc, 'group', '%s_outer_ZERO' % self.name)
 
         self.ballPivotIkCtrl = controls.squareCtrl(name='%s_ballPivot_ik_CTRL' % self.name, axis=axis, size=ctrlSize)
         coreUtils.align(self.ballPivotIkCtrl, self.tripleChain['ikChain'][2])
@@ -131,7 +131,7 @@ class DrReverseFoot(systemUtils.DrSystem):
         pmc.parentConstraint(self.footIkCtrl, footIkHandleConst, mo=1)
         pmc.parentConstraint(self.footIkCtrl, ikConst_grp, mo=1)
         self.ctrls.append(self.footIkCtrl)
-        
+
         # fkCtrls
         self.footFkCtrl = controls.squareCtrl(name='%s_foot_fk_CTRL' % self.name, axis=axis, size=ctrlSize)
         coreUtils.align(self.footFkCtrl, self.tripleChain['fkChain'][1])
@@ -140,7 +140,7 @@ class DrReverseFoot(systemUtils.DrSystem):
         coreUtils.addParent(self.footFkCtrl, 'group', '%s_footFkCtrl_ZERO' % self.name)
         pmc.parentConstraint(self.footFkCtrl, self.tripleChain['fkChain'][1])
         self.ctrls.append(self.footFkCtrl)
-        
+
         self.ballFkCtrl = controls.squareCtrl(name='%s_ball_fk_CTRL' % self.name, axis=axis, size=ctrlSize)
         coreUtils.align(self.ballFkCtrl, self.tripleChain['fkChain'][2])
         self.ballFkCtrl.setParent(self.footFkCtrl)
@@ -171,4 +171,157 @@ class DrReverseFoot(systemUtils.DrSystem):
     def cleanup(self):
         coreUtils.attrCtrl(nodeList=self.ctrls, attrList=['tx', 'ty', 'tz', 'sx', 'sy', 'sz', 'visibility'])
         coreUtils.attrCtrl(nodeList=[self.ballPivotIkCtrl], attrList=['ry'])
+        self.rig_grp.visibility.set(0)
+
+class DrReverseFootAttrs(systemUtils.DrSystem):
+    def __init__(self, name, ankle=None, foot=None, ball=None, toe=None, inner=None, outer=None, heel=None,
+                 settingsNode=None, blendAttr=None, colour='red', cleanup=1):
+        self.ctrls=[]
+        if not ankle and len(pmc.selected()) == 7:
+            sel = pmc.selected()
+            ankle = sel[0]
+            foot = sel[1]
+            ball = sel[2]
+            toe = sel[3]
+            inner = sel[4]
+            outer = sel[5]
+            heel = sel[6]
+        if not ankle:
+            return 'DrReverseFoot: Please supply or select joints for Ankle, Foot, Ball, Toe, Inner, Outer and Heel positions.'
+        super(DrReverseFootAttrs, self).__init__(name=name)
+        self.buildFoot(ankle, foot, ball, toe, inner, outer, heel, settingsNode, blendAttr, colour, cleanup)
+
+    def buildFoot(self, ankle, foot, ball, toe, inner, outer, heel, settingsNode, blendAttr, colour, cleanup):
+
+        # Make duplicate joint chains
+        self.tripleChain = systemUtils.tripleChain(joints=[ankle, foot, toe], name=self.name, flip=0)
+        ikConst_grp = coreUtils.addParent(self.tripleChain['ikChain'][0], 'group', '%s_ikConst_GRP' % self.name)
+        fkConst_grp = coreUtils.addParent(self.tripleChain['fkChain'][0], 'group', '%s_fkConst_GRP' % self.name)
+        resultConst_grp = coreUtils.addParent(self.tripleChain['resultChain'][0], 'group', '%s_resultConst_GRP' % self.name)
+
+        self.tripleChain['main_grp'].setParent(self.rig_grp)
+
+        if blendAttr:
+            par = pmc.parentConstraint(ikConst_grp, fkConst_grp, resultConst_grp, mo=0)
+            attr = pmc.Attribute('%s.%sW1' % (par.name(), fkConst_grp.name()))
+            blendAttr.connect(attr)
+            attr = pmc.Attribute('%s.%sW0' % (par.name(), ikConst_grp.name()))
+            blend_rev = coreUtils.reverse(blendAttr, 'reverse_%s_blend, UTL' % self.name)
+            blend_rev.outputX.connect(attr)
+
+            for bc in self.tripleChain['blendColors']:
+                blendAttr.connect(bc.blender)
+
+        # Orientation for controls
+        axis = 'x'
+        if self.tripleChain['resultChain'][1].tx.get() < 0.0:
+            axis = '-x'
+        ctrlSize = coreUtils.getDistance(self.tripleChain['resultChain'][0], self.tripleChain['resultChain'][1]) * .5
+
+        # ikHandles
+        ballIkHandle = pmc.ikHandle(solver='ikRPsolver',
+                                    name='%s_ball_ikHandle' % self.name,
+                                    startJoint=self.tripleChain['ikChain'][0],
+                                    endEffector=self.tripleChain['ikChain'][1],
+                                    setupForRPsolver=1)[0]
+        ballIkHandle.setParent(self.rig_grp)
+        ballIkHandleConst = coreUtils.addParent(ballIkHandle, 'group', '%s_ballIkHandle_CONST' % self.name)
+
+        toeIkHandle = pmc.ikHandle(solver='ikRPsolver',
+                                   name='%s_toe_ikHandle' % self.name,
+                                   startJoint=self.tripleChain['ikChain'][1],
+                                   endEffector=self.tripleChain['ikChain'][2],
+                                   setupForRPsolver=1)[0]
+        toeIkHandle.setParent(self.rig_grp)
+        toeIkHandleConst = coreUtils.addParent(toeIkHandle, 'group', '%s_toeIkHandle_CONST' % self.name)
+
+        # ikCtrls
+        self.heelLoc = coreUtils.createAlignedNode(heel, 'group', '%s_heel_GRP' % self.name)
+        self.heelLoc.setParent(self.rig_grp)
+        self.ikRig_grp = coreUtils.addParent(self.heelLoc, 'group', '%s_heel_ZERO' % self.name)
+
+        self.toeLoc = coreUtils.createAlignedNode(toe, 'group', '%s_toe_GRP' % self.name)
+        self.toeLoc.setParent(self.heelLoc)
+
+        self.innerLoc = coreUtils.createAlignedNode(inner, 'group', '%s_inner_GRP' % self.name)
+        self.innerLoc.setParent(self.toeLoc)
+        innerZero = coreUtils.addParent(self.innerLoc, 'group', '%s_inner_ZERO' % self.name)
+
+        self.outerLoc = coreUtils.createAlignedNode(outer, 'group', '%s_outer_GRP' % self.name)
+        self.outerLoc.setParent(self.innerLoc)
+        outerZero = coreUtils.addParent(self.outerLoc, 'group', '%s_outer_ZERO' % self.name)
+
+        self.ballPivotLoc = coreUtils.createAlignedNode(ball, 'group', '%s_ballPivot_GRP' % self.name)
+        self.ballPivotLoc.setParent(self.outerLoc)
+        coreUtils.addParent(self.ballPivotLoc, 'group', '%s_ballPivot_ZERO' % self.name)
+
+        pmc.transformLimits(self.innerLoc, rx=(-45, 0), erx=(0, 1))
+
+        pmc.transformLimits(self.outerLoc, rx=(0, 45), erx=(1, 0))
+
+        self.ballLoc = coreUtils.createAlignedNode(foot, 'group', '%s_ball_GRP' % self.name)
+        self.ballLoc.setParent(self.ballPivotLoc)
+        self.ballZero = coreUtils.addParent(self.ballLoc, 'group', '%s_ball_ZERO' % self.name)
+        self.toeWiggleLoc = coreUtils.addChild(self.ballZero, 'group', '%s_toeWiggle_GRP' % self.name)
+        pmc.parentConstraint(self.ballLoc, ballIkHandleConst, mo=1)
+        pmc.parentConstraint(self.toeWiggleLoc, toeIkHandleConst, mo=1)
+
+        # driver attributes
+        for attrName in ['roll_heel', 'roll_ball', 'roll_toe', 'pivot_heel', 'pivot_ball', 'pivot_toe', 'tilt_side', 'lean_ankle', 'wiggle_toe', 'lean_toe']:
+            pmc.addAttr(settingsNode, ln=attrName, at='double', k=1, h=0)
+
+        attr = pmc.Attribute('%s.roll_heel' % settingsNode.name())
+        attr.connect(self.heelLoc.ry)
+
+        attr = pmc.Attribute('%s.roll_ball' % settingsNode.name())
+        attr.connect(self.ballLoc.ry)
+
+        attr = pmc.Attribute('%s.roll_toe' % settingsNode.name())
+        attr.connect(self.toeLoc.ry)
+
+        attr = pmc.Attribute('%s.pivot_heel' % settingsNode.name())
+        attr.connect(self.heelLoc.rz)
+
+        attr = pmc.Attribute('%s.pivot_ball' % settingsNode.name())
+        attr.connect(self.ballPivotLoc.rz)
+
+        attr = pmc.Attribute('%s.pivot_toe' % settingsNode.name())
+        attr.connect(self.toeLoc.rz)
+
+        attr = pmc.Attribute('%s.tilt_side' % settingsNode.name())
+        attr.connect(self.innerLoc.rx)
+        attr.connect(self.outerLoc.rx)
+
+        attr = pmc.Attribute('%s.lean_ankle' % settingsNode.name())
+        attr.connect(self.ballLoc.rx)
+
+        attr = pmc.Attribute('%s.wiggle_toe' % settingsNode.name())
+        attr.connect(self.toeWiggleLoc.ry)
+
+        attr = pmc.Attribute('%s.lean_toe' % settingsNode.name())
+        attr.connect(self.toeWiggleLoc.rx)
+
+
+        # fkCtrl
+        self.ballFkCtrl = controls.pinCtrl(name='%s_ball_fk_CTRL' % self.name, axis=axis, radius=ctrlSize)
+        coreUtils.align(self.ballFkCtrl, self.tripleChain['fkChain'][1])
+        self.ballFkCtrl.setParent(self.ctrls_grp)
+        self.ballFkCtrlZero = coreUtils.addParent(self.ballFkCtrl, 'group', '%s_ballFkCtrl_ZERO' % self.name)
+        pmc.parentConstraint(self.ballFkCtrl, self.tripleChain['fkChain'][1])
+
+        coreUtils.colorize(colour, [self.ballFkCtrl])
+
+        pmc.parentConstraint(self.ballFkCtrlZero, fkConst_grp, mo=1)
+
+        for joint in self.tripleChain['resultChain']:
+            self.joints.append(joint)
+
+        # connections
+        self.exposeSockets({'ikFoot': self.tripleChain['ikChain'][0]})
+
+        if cleanup:
+            self.cleanup()
+
+    def cleanup(self):
+        coreUtils.attrCtrl(nodeList=self.ctrls, attrList=['tx', 'ty', 'tz', 'sx', 'sy', 'sz', 'visibility'])
         self.rig_grp.visibility.set(0)
