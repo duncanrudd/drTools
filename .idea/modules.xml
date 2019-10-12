@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/drTools.iml" filepath="$PROJECT_DIR$/.idea/drTools.iml" />
+      <module fileurl="file://E:/Downloads/Software_and_plugins/mgear_3.0.3/.idea/mgear_3.0.3.iml" filepath="E:/Downloads/Software_and_plugins/mgear_3.0.3/.idea/mgear_3.0.3.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../tRigger/.idea/tRigger.iml" filepath="$PROJECT_DIR$/../tRigger/.idea/tRigger.iml" />
     </modules>
   </component>
 </project>

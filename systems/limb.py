@@ -94,9 +94,12 @@ class DrLimb(systemUtils.DrSystem):
                                                                       axis='z', upAxis='y', worldUpAxis=alignIkToJoints,
                                                                       upNode=joints[2]))
             else:
+                axis = '-x'
+                if self.tripleChain['resultChain'][2].tx.get() < 0.0:
+                    axis = 'x'
                 pmc.xform(self.ikCtrl, ws=1, m=coreUtils.getAimMatrix(start=joints[2],
                                                                       end=joints[3],
-                                                                      axis='-x', upAxis='y', worldUpAxis=alignIkToJoints,
+                                                                      axis=axis, upAxis='y', worldUpAxis=alignIkToJoints,
                                                                       upNode=joints[2]))
         else:
             coreUtils.align(self.ikCtrl, self.tripleChain['ikChain'][2], orient=0)
@@ -283,8 +286,9 @@ class DrLimb(systemUtils.DrSystem):
         # pinLowerBlend.outputR.connect(self.tripleChain['flipChain'][2].tx)
 
         # Add ability to force straight arm
-        straightUpper_md = coreUtils.multiply(stretchDist.distance, self.tripleChain['ikChain'][1].tx.get() / chainLen, name='md_%s_midLenTimesChainLen_UTL' % self.name)
-        straightLower_md = coreUtils.multiply(stretchDist.distance, self.tripleChain['ikChain'][2].tx.get() / chainLen, name='md_%s_botLenTimesChainLen_UTL' % self.name)
+        stretchDivGlobal_md = coreUtils.divide(stretchDist.distance, self.main_grp.globalScale, name='md_%s_stretchDivGlobalScale_UTL' % self.name)
+        straightUpper_md = coreUtils.multiply(stretchDivGlobal_md.outputX, self.tripleChain['ikChain'][1].tx.get() / chainLen, name='md_%s_midLenTimesChainLen_UTL' % self.name)
+        straightLower_md = coreUtils.multiply(stretchDivGlobal_md.outputX, self.tripleChain['ikChain'][2].tx.get() / chainLen, name='md_%s_botLenTimesChainLen_UTL' % self.name)
         straightUpperBlend = coreUtils.blend(input1=straightUpper_md.outputX, input2=pinUpperBlend.outputR, blendAttr=self.ikCtrl.force_straight, name='bc_%s_straightUpper_UTL' % self.name)
         straightLowerBlend = coreUtils.blend(input1=straightLower_md.outputX, input2=pinLowerBlend.outputR, blendAttr=self.ikCtrl.force_straight, name='bc_%s_straightLower_UTL' % self.name)
         straightUpperBlend.outputR.connect(self.tripleChain['ikChain'][1].tx)
